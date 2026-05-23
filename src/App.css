@@ -1,0 +1,156 @@
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: #060606;
+  color: #fff;
+  overflow-x: hidden;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(24,187,26,0.08), transparent 45%),
+    linear-gradient(180deg, #060606 0%, #0b0b0b 100%);
+}
+
+/* Smooth rendering */
+img,
+video {
+  max-width: 100%;
+  display: block;
+}
+
+/* Nice selection color */
+::selection {
+  background: rgba(24, 187, 26, 0.35);
+  color: #fff;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d0d0d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1d1d1d;
+  border-radius: 999px;
+  border: 2px solid #0d0d0d;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2b2b2b;
+}
+
+/* ============================= */
+/* ANIMATIONS */
+/* ============================= */
+
+@keyframes vaultPulse {
+  0% {
+    text-shadow:
+      0 0 6px rgba(24, 187, 26, 0.25),
+      0 0 12px rgba(24, 187, 26, 0.2);
+    opacity: 0.92;
+  }
+
+  50% {
+    text-shadow:
+      0 0 12px rgba(24, 187, 26, 0.55),
+      0 0 24px rgba(24, 187, 26, 0.35);
+    opacity: 1;
+  }
+
+  100% {
+    text-shadow:
+      0 0 6px rgba(24, 187, 26, 0.25),
+      0 0 12px rgba(24, 187, 26, 0.2);
+    opacity: 0.92;
+  }
+}
+
+@keyframes logoPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.92;
+    filter:
+      drop-shadow(0 0 6px rgba(24,187,26,0.18));
+  }
+
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+    filter:
+      drop-shadow(0 0 18px rgba(24,187,26,0.34));
+  }
+}
+
+@keyframes greenGlow {
+  0% {
+    box-shadow:
+      0 0 0 rgba(24,187,26,0);
+  }
+
+  50% {
+    box-shadow:
+      0 0 18px rgba(24,187,26,0.14);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 rgba(24,187,26,0);
+  }
+}
+
+@keyframes panelHover {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes loadingGlow {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+/* ============================= */
+/* HELPERS */
+/* ============================= */
+
+.glow-text {
+  animation: vaultPulse 2.4s ease-in-out infinite;
+}
+
+.glow-panel {
+  animation: greenGlow 3s ease-in-out infinite;
+}
+
+/* Better tap experience on mobile */
+button,
+input,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
