@@ -9,7 +9,7 @@ import VaultPosition from "./components/VaultPosition.jsx";
 import NftHangar from "./components/NftHangar.jsx";
 import VaultIntelligence from "./components/VaultIntelligence.jsx";
 import Footer from "./components/Footer.jsx";
-import EcosystemBlock from "./components/EcosystemBlock.jsx";
+import EcosystemBlock from "./components/ecosystemBlock.jsx";
 
 import {
   CoreClashLogo, AppBackground, PlanetZephyrosAE, ElectroSwap,
