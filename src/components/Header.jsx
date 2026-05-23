@@ -20,9 +20,9 @@ export default function Header({
         display: "flex",
         alignItems: "stretch",
         justifyContent: "space-between",
-        gap: isMobile ? 12 : 24,
+        gap: isMobile ? 10 : 18,
         width: "100%",
-        marginBottom: 16,
+        marginBottom: 10,
         flexWrap: isMobile ? "wrap" : "nowrap",
       }}
     >
@@ -122,10 +122,10 @@ export default function Header({
 
 <div
   style={{
-    marginTop: 10,
+    marginTop: 6,
     display: "flex",
     flexDirection: "column",
-    gap: 2,
+    gap: 1,
     maxWidth: 540,
   }}
 >
@@ -165,10 +165,10 @@ export default function Header({
 
   <div
     style={{
-      fontSize: isMobile ? 12 : 15,
+      fontSize: isMobile ? 11 : 13,
       fontWeight: 800,
       textTransform: "uppercase",
-      letterSpacing: 1.4,
+      letterSpacing: 1,
       color: "#18bb1a",
       textShadow:
         "0 0 12px rgba(24,187,26,0.28)",
