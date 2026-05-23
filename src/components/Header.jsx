@@ -53,7 +53,7 @@ export default function Header({
       muted
       playsInline
       style={{
-        height: isMobile ? 132 : 150,
+        height: isMobile ? 96 : 112,
         width: "auto",
         display: "block",
         pointerEvents: "none",
@@ -106,7 +106,7 @@ export default function Header({
             style={{
               margin: 0,
               fontWeight: 900,
-              fontSize: isMobile ? 30 : 52,
+              fontSize: isMobile ? 28 : 42,
               lineHeight: 0.95,
               letterSpacing: isMobile ? 1 : 2,
               textTransform: "uppercase",
