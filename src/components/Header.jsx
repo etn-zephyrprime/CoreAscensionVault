@@ -18,7 +18,7 @@ export default function Header({
     <div
       style={{
         display: "flex",
-        alignItems: "center",
+        alignItems: "stretch",
         justifyContent: "space-between",
         gap: isMobile ? 12 : 24,
         width: "100%",
@@ -38,41 +38,58 @@ export default function Header({
       >
         {/* Logo */}
 {PlanetZephyrosAE ? (
-  <video
-    src={PlanetZephyrosAE}
-    autoPlay
-    loop
-    muted
-    playsInline
+  <div
     style={{
-      height: isMobile ? 72 : 92,
-      width: "auto",
-      display: "block",
-      pointerEvents: "none",
-      animation: "logoPulse 2.4s ease-in-out infinite",
-      filter: "drop-shadow(0 0 14px rgba(0,255,140,0.18))",
+      height: "100%",
+      display: "flex",
+      alignItems: "center",
       flexShrink: 0,
-      borderRadius: 12,
+    }}
+  >
+    <video
+      src={PlanetZephyrosAE}
+      autoPlay
+      loop
+      muted
+      playsInline
+      style={{
+        height: isMobile ? 132 : 150,
+        width: "auto",
+        display: "block",
+        pointerEvents: "none",
+        animation:
+          "logoPulse 2.4s ease-in-out infinite",
+        filter:
+          "drop-shadow(0 0 14px rgba(0,255,140,0.18))",
+        borderRadius: 12,
+        objectFit: "contain",
+      }}
+    />
+  </div>
+) : (
+  <div
+    style={{
+      width: isMobile ? 90 : 140,
+      height: isMobile ? 90 : 140,
+      borderRadius: 16,
+      background:
+        "linear-gradient(145deg,#111,#181818)",
+      border: `1px solid ${border}`,
+      boxShadow:
+        "0 0 18px rgba(0,255,140,0.12)",
     }}
   />
-) : (
-            <div
-            style={{
-              width: isMobile ? 72 : 92,
-              height: isMobile ? 72 : 92,
-              borderRadius: 16,
-              background:
-                "linear-gradient(145deg,#111,#181818)",
-              border: `1px solid ${border}`,
-              boxShadow:
-                "0 0 18px rgba(0,255,140,0.12)",
-            }}
-          />
-        )}
-
+)}
         {/* Text */}
-        <div style={{ minWidth: 0 }}>
-          <div
+<div
+  style={{
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+  }}
+>
+            <div
             style={{
               fontSize: isMobile ? 10 : 12,
               color: "#7c7c7c",
@@ -103,19 +120,63 @@ export default function Header({
             CORE ASCENSION
           </h1>
 
-          <div
-            style={{
-              marginTop: 8,
-              fontSize: isMobile ? 11 : 14,
-              color: "#aaa",
-              lineHeight: 1.4,
-              maxWidth: 500,
-            }}
-          >
-            Stake CORE with Guardians of Erevos.
-            Absorb Zephyros emissions.
-            Rise through Ascension.
-          </div>
+<div
+  style={{
+    marginTop: 10,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    maxWidth: 540,
+  }}
+>
+  <div
+    style={{
+      fontSize: isMobile ? 11 : 14,
+      color: "#cfcfcf",
+      lineHeight: 1.35,
+      fontWeight: 500,
+      letterSpacing: 0.2,
+    }}
+  >
+    Stake <span style={{ color: "#18bb1a", fontWeight: 800 }}>CORE</span> with{" "}
+    <span
+      style={{
+        color: "#ffcc66",
+        fontWeight: 700,
+        textShadow:
+          "0 0 8px rgba(255,204,102,0.18)",
+      }}
+    >
+      Guardians of Erevos
+    </span>
+    .
+  </div>
+
+  <div
+    style={{
+      fontSize: isMobile ? 11 : 14,
+      color: "#aaa",
+      lineHeight: 1.35,
+      letterSpacing: 0.3,
+    }}
+  >
+    Absorb the emissions of Zephyros.
+  </div>
+
+  <div
+    style={{
+      fontSize: isMobile ? 12 : 15,
+      fontWeight: 800,
+      textTransform: "uppercase",
+      letterSpacing: 1.4,
+      color: "#18bb1a",
+      textShadow:
+        "0 0 12px rgba(24,187,26,0.28)",
+    }}
+  >
+    Rise Through Ascension
+  </div>
+</div>
         </div>
       </div>
 

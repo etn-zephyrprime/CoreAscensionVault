@@ -78,24 +78,62 @@ const refreshOwnedNfts = useCallback(async () => {
     setLoading(true);
     setMessage("Refreshing NFT cache...");
 
-    const res = await fetch(`${BACKEND_URL}/nfts/refresh/${account}`, {
-      method: "POST",
-    });
+    const url = `${BACKEND_URL}/nfts/owned/${account}?refresh=true`;
+    console.log("Refreshing NFTs from:", url);
+
+    const res = await fetch(url);
 
     if (!res.ok) {
-      throw new Error(`Refresh failed: ${res.status}`);
+      let errorMessage = `Refresh failed: ${res.status}`;
+
+      try {
+        const errorData = await res.json();
+
+        if (res.status === 429 && errorData.retryAfterMs) {
+          const minutes = Math.ceil(errorData.retryAfterMs / 60000);
+          errorMessage = `NFT refresh is on cooldown. Try again in about ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // keep default message
+      }
+
+      throw new Error(errorMessage);
     }
 
-    await loadOwnedNfts();
+    const data = await res.json();
 
+    const allNfts = Array.isArray(data)
+      ? data
+      : data.ownedNFTs ||
+        data.nfts ||
+        data.tokens ||
+        [];
+
+    const filtered = allNfts.filter((nft) => {
+      const addr =
+        nft.nftAddress ||
+        nft.address ||
+        nft.contractAddress ||
+        nft.collectionAddress;
+
+      return (
+        addr?.toLowerCase() ===
+        "0x5c81a5609eaeef7962f1d089d6343f9790387901"
+      );
+    });
+
+    setOwnedNFTs(filtered);
+    setMapping(data.mapping || {});
     setMessage("NFT cache refreshed.");
   } catch (err) {
     console.error("refreshOwnedNfts failed:", err);
-    setMessage("Failed to refresh NFT cache.");
+    setMessage(err.message || "Failed to refresh NFT cache.");
   } finally {
     setLoading(false);
   }
-}, [account, loadOwnedNfts]);
+}, [account]);
   
   return {
     ownedNFTs,

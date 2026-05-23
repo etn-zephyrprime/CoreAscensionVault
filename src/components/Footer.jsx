@@ -1,4 +1,5 @@
 import React from "react";
+import { PlanetZephyrosLogo } from "../appMedia/media.js";
 
 export default function Footer() {
   return (
@@ -11,23 +12,37 @@ export default function Footer() {
         display: "flex",
         flexDirection: "column",
         gap: 8,
+        alignItems: "center",
       }}
     >
       <div
         style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
           fontSize: 13,
           color: "#888",
           letterSpacing: 1,
           textTransform: "uppercase",
-          textShadow:
-            "0 0 8px rgba(24,187,26,0.4)",
+          textShadow: "0 0 8px rgba(24,187,26,0.4)",
+          flexWrap: "wrap",
         }}
       >
-        © {new Date().getFullYear()}
-        {" "}
-        Planet Zephyros ×
-        {" "}
-        @ETN_Villain
+        <img
+          src={PlanetZephyrosLogo}
+          alt="Planet Zephyros"
+          style={{
+            height: 24,
+            width: "auto",
+            objectFit: "contain",
+            filter: "drop-shadow(0 0 6px rgba(24,187,26,0.5))",
+          }}
+        />
+
+        <span>
+          © {new Date().getFullYear()} Planet Zephyros × @ETN_Villain
+        </span>
       </div>
 
       <div
@@ -49,12 +64,8 @@ export default function Footer() {
           lineHeight: 1.4,
         }}
       >
-        Blockchain staking
-        involves risk. Users are
-        responsible for wallets,
-        transactions, approvals,
-        and smart contract
-        interactions.
+        Blockchain staking involves risk. Users are responsible for wallets,
+        transactions, approvals, and smart contract interactions.
       </div>
     </div>
   );

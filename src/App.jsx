@@ -108,7 +108,10 @@ export default function App() {
           />
         </div>
 
-        <VaultIntelligence isMobile={isMobile} />
+<VaultIntelligence
+  isMobile={isMobile}
+  vaultData={vaultData}
+/>
 
         <Footer />
       </div>

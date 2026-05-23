@@ -185,6 +185,14 @@ async function approveCore() {
   }
 }
 
+const maxStakeable = Math.max(
+  0,
+  Math.min(
+    Number(coreBalance || 0),
+    10000 - Number(vaultData?.coreStaked || 0)
+  )
+);
+
 async function stakeCore() {
   try {
     if (!wallet.account) {
@@ -606,51 +614,14 @@ async function previewEarlyPenalty(amountWei) {
         )}
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          marginBottom: 12,
-        }}
-      >
-        <label
-          style={{
-            fontSize: 12,
-            color: "#aaa",
-            fontWeight: 700,
-            textTransform: "uppercase",
-          }}
-        >
-          Stake CORE
-        </label>
-
-        <input
-          value={stakeAmount}
-          onChange={(e) => setStakeAmount(e.target.value)}
-          type="number"
-          placeholder="Enter amount"
-          style={{
-            width: "100%",
-            maxWidth: isMobile ? "100%" : 260,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: `1px solid ${border}`,
-            background: panel,
-            color: "#fff",
-            fontSize: 14,
-            outline: "none",
-            boxSizing: "border-box",
-          }}
-        />
-      </div>
-
-      <div
+<div
   style={{
     display: "flex",
     flexDirection: "column",
-    gap: 4,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 16,
+    width: "100%",
+    maxWidth: isMobile ? "100%" : 420,
   }}
 >
   <label
@@ -661,27 +632,337 @@ async function previewEarlyPenalty(amountWei) {
       textTransform: "uppercase",
     }}
   >
-    Withdraw Amount
+    Stake CORE
   </label>
 
+  {/* Slider */}
   <input
-    value={withdrawAmount}
-    onChange={(e) => setWithdrawAmount(e.target.value)}
-    type="number"
-    placeholder="Enter withdraw amount"
+    type="range"
+    min="0"
+    max="100"
+    step="1"
+    disabled={maxStakeable <= 0}
+    value={
+      maxStakeable > 0
+        ? Math.round(
+            (Number(stakeAmount || 0) /
+              maxStakeable) *
+              100
+          )
+        : 0
+    }
+    onChange={(e) => {
+      const pct = Number(e.target.value);
+
+      const amount =
+        (maxStakeable * pct) / 100;
+
+      setStakeAmount(
+        amount > 0
+          ? amount.toFixed(4)
+          : ""
+      );
+    }}
     style={{
       width: "100%",
-      maxWidth: isMobile ? "100%" : 260,
-      padding: "10px 12px",
-      borderRadius: 8,
-      border: `1px solid ${border}`,
-      background: panel,
-      color: "#fff",
-      fontSize: 14,
-      outline: "none",
-      boxSizing: "border-box",
+      accentColor: "#18bb1a",
+      cursor:
+        maxStakeable > 0
+          ? "pointer"
+          : "not-allowed",
+      opacity:
+        maxStakeable > 0 ? 1 : 0.45,
     }}
   />
+
+  {/* Labels */}
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: 11,
+      color: "#777",
+      marginTop: -4,
+    }}
+  >
+    <span>0%</span>
+    <span>100%</span>
+  </div>
+
+  {/* Presets */}
+  <div
+    style={{
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap",
+    }}
+  >
+    {[25, 50, 75, 100].map((pct) => (
+      <button
+        key={pct}
+        type="button"
+        disabled={maxStakeable <= 0}
+        onClick={() => {
+          const amount =
+            (maxStakeable * pct) /
+            100;
+
+          setStakeAmount(
+            amount.toFixed(4)
+          );
+        }}
+        style={{
+          background: "#111",
+          border: "1px solid #333",
+          borderRadius: 10,
+          color: "#fff",
+          padding: "8px 12px",
+          fontSize: 12,
+          fontWeight: 700,
+          cursor:
+            maxStakeable > 0
+              ? "pointer"
+              : "not-allowed",
+          opacity:
+            maxStakeable > 0
+              ? 1
+              : 0.45,
+          transition:
+            "all 0.15s ease",
+        }}
+      >
+        {pct}%
+      </button>
+    ))}
+  </div>
+
+  {/* Amount Display */}
+  <div
+    style={{
+      background: "#111",
+      border: "1px solid #2a2a2a",
+      borderRadius: 12,
+      padding: "12px 14px",
+      textAlign: "center",
+      marginTop: 4,
+    }}
+  >
+    <div
+      style={{
+        fontSize: 11,
+        color: "#777",
+        textTransform: "uppercase",
+        marginBottom: 4,
+      }}
+    >
+      Stake Amount
+    </div>
+
+    <div
+      style={{
+        fontSize: isMobile ? 20 : 24,
+        fontWeight: 900,
+        color: "#18bb1a",
+        textShadow:
+          "0 0 10px rgba(24,187,26,0.25)",
+      }}
+    >
+      {Number(stakeAmount || 0).toLocaleString(
+        undefined,
+        {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 4,
+        }
+      )}{" "}
+      CORE
+    </div>
+
+    <div
+      style={{
+        marginTop: 6,
+        fontSize: 12,
+        color: "#777",
+      }}
+    >
+      Max Stakeable:{" "}
+      {maxStakeable.toLocaleString(
+        undefined,
+        {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+        }
+      )}{" "}
+      CORE
+    </div>
+  </div>
+</div>
+
+<div
+  style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginBottom: 16,
+    width: "100%",
+    maxWidth: isMobile ? "100%" : 420,
+  }}
+>
+  <label
+    style={{
+      fontSize: 12,
+      color: "#aaa",
+      fontWeight: 700,
+      textTransform: "uppercase",
+    }}
+  >
+    Withdraw CORE
+  </label>
+
+  {/* Slider */}
+  <input
+    type="range"
+    min="0"
+    max="100"
+    step="1"
+    value={
+      vaultData?.coreStaked > 0
+        ? Math.round(
+            (Number(withdrawAmount || 0) /
+              Number(vaultData.coreStaked)) *
+              100
+          )
+        : 0
+    }
+    onChange={(e) => {
+      const pct = Number(e.target.value);
+
+      const amount =
+        (Number(vaultData?.coreStaked || 0) * pct) /
+        100;
+
+      setWithdrawAmount(
+        amount > 0
+          ? amount.toFixed(4)
+          : ""
+      );
+    }}
+    style={{
+      width: "100%",
+      accentColor: "#18bb1a",
+      cursor: "pointer",
+    }}
+  />
+
+  {/* Labels */}
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: 11,
+      color: "#777",
+      marginTop: -4,
+    }}
+  >
+    <span>0%</span>
+    <span>100%</span>
+  </div>
+
+  {/* Presets */}
+  <div
+    style={{
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap",
+    }}
+  >
+    {[25, 50, 75, 100].map((pct) => (
+      <button
+        key={pct}
+        type="button"
+        onClick={() => {
+          const amount =
+            (Number(vaultData?.coreStaked || 0) *
+              pct) /
+            100;
+
+          setWithdrawAmount(
+            amount.toFixed(4)
+          );
+        }}
+        style={{
+          background: "#111",
+          border: "1px solid #333",
+          borderRadius: 10,
+          color: "#fff",
+          padding: "8px 12px",
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+          transition: "all 0.15s ease",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.border =
+            "1px solid #18bb1a";
+          e.currentTarget.style.boxShadow =
+            "0 0 10px rgba(24,187,26,0.25)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.border =
+            "1px solid #333";
+          e.currentTarget.style.boxShadow =
+            "none";
+        }}
+      >
+        {pct}%
+      </button>
+    ))}
+  </div>
+
+  {/* Amount Display */}
+  <div
+    style={{
+      background: "#111",
+      border: "1px solid #2a2a2a",
+      borderRadius: 12,
+      padding: "12px 14px",
+      textAlign: "center",
+      marginTop: 4,
+    }}
+  >
+    <div
+      style={{
+        fontSize: 11,
+        color: "#777",
+        textTransform: "uppercase",
+        marginBottom: 4,
+      }}
+    >
+      Withdrawal Amount
+    </div>
+
+<div
+  style={{
+    fontSize: isMobile ? 20 : 24,
+    fontWeight: 900,
+    color: "#ff4d4d",
+    textShadow: `
+      0 0 4px rgba(255,77,77,0.7),
+      0 0 10px rgba(255,77,77,0.55),
+      0 0 18px rgba(255,77,77,0.35)
+    `,
+    letterSpacing: 0.4,
+  }}
+>
+  {Number(withdrawAmount || 0).toLocaleString(
+    undefined,
+    {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 4,
+    }
+  )}{" "}
+  CORE
+</div>
+  </div>
 </div>
 
       <div
