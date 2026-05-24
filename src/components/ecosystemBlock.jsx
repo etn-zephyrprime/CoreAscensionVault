@@ -32,7 +32,7 @@ export default function EcosystemBlock({
       alt: "Buy CORE",
       imageSrc: ElectroSwap,
       imageScale: 1.0,
-      url: "https://app.electroswap.io/explore/tokens/electroneum/0x309b916b3a90cb3e071697ea9680e9217a30066f?inputCurrency=ETN",
+      url: "https://app.electroswap.io/swap?inputCurrency=ETN&outputCurrency=0x309b916b3a90cb3e071697ea9680e9217a30066f",
     },
     {
       type: "card",
