@@ -1,15 +1,20 @@
 import React from "react";
 import Panel from "./Panel.jsx";
+import { green, muted } from "../styles/theme.js";
 
-import {
-  green,
-  muted,
-} from "../styles/theme.js";
-
-function StatBox({ icon, label, value, color = green }) {
+function StatBox({ icon, label, value, color = green, isMobile = false }) {
   return (
     <Panel style={{ minWidth: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: isMobile ? 8 : 10,
+          textAlign: isMobile ? "center" : "left",
+        }}
+      >
         <div
           style={{
             width: 38,
@@ -21,12 +26,13 @@ function StatBox({ icon, label, value, color = green }) {
             alignItems: "center",
             justifyContent: "center",
             color,
-            boxShadow: `0 0 8px rgba(0,0,0,0.35)`,
+            boxShadow: "0 0 8px rgba(0,0,0,0.35)",
             flexShrink: 0,
           }}
         >
           {icon}
         </div>
+
         <div style={{ minWidth: 0 }}>
           <div
             style={{
@@ -39,6 +45,7 @@ function StatBox({ icon, label, value, color = green }) {
           >
             {label}
           </div>
+
           <div
             style={{
               fontSize: 20,

@@ -23,31 +23,35 @@ export default function VaultStats({ vaultData, isMobile }) {
         marginBottom: 12,
       }}
     >
-      <StatBox
-        icon={<Shield size={20} />}
-        label="Current APR"
-        value={`${formatNumber(data.currentApr, 2)}%`}
-      />
+<StatBox
+  isMobile={isMobile}
+  icon={<Shield size={20} />}
+  label="Current APR"
+  value={`${formatNumber(data.currentApr, 2)}%`}
+/>
 
-      <StatBox
-        icon={<Lock size={20} />}
-        label="Total Staked"
-        value={`${formatNumber(data.totalCoreStaked, 0)} CORE`}
-      />
+<StatBox
+  isMobile={isMobile}
+  icon={<Lock size={20} />}
+  label="Total Staked"
+  value={`${formatNumber(data.totalCoreStaked, 0)} CORE`}
+/>
 
-      <StatBox
-        icon={<Flame size={20} />}
-        label="Rewards Left"
-        value={`${formatNumber(data.rewardsRemaining, 0)} CORE`}
-        color={orange}
-      />
+<StatBox
+  isMobile={isMobile}
+  icon={<Flame size={20} />}
+  label="Rewards Left"
+  value={`${formatNumber(data.rewardsRemaining, 0)} CORE`}
+  color={orange}
+/>
 
-      <StatBox
-        icon={<Timer size={20} />}
-        label="Term Left"
-        value={`${Number(data.daysRemaining || 0)} Days`}
-        color={blue}
-      />
+<StatBox
+  isMobile={isMobile}
+  icon={<Timer size={20} />}
+  label="Term Left"
+  value={`${Number(data.daysRemaining || 0)} Days`}
+  color={blue}
+/>
     </div>
   );
 }
