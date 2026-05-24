@@ -18,25 +18,109 @@ export default function Header({
     <div
       style={{
         display: "flex",
-        alignItems: "stretch",
+        flexDirection: isMobile ? "column" : "row",
+        alignItems: isMobile ? "stretch" : "stretch",
         justifyContent: "space-between",
         gap: isMobile ? 10 : 18,
         width: "100%",
         marginBottom: 10,
-        flexWrap: isMobile ? "wrap" : "nowrap",
       }}
     >
+      {/* RIGHT: Wallet */}
+<div
+  style={{
+    display: "flex",
+    justifyContent: isMobile ? "flex-end" : "flex-end",
+    alignItems: "center",
+    width: isMobile ? "100%" : "auto",
+    gap: 8,
+    flexShrink: 0,
+    order: isMobile ? 0 : 2,
+  }}
+>
+          {wallet.account ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: panel,
+              padding: "8px 14px",
+              borderRadius: 14,
+              border: `1px solid ${border}`,
+              boxShadow:
+                "0 0 12px rgba(0,0,0,0.45)",
+            }}
+          >
+            <Wallet
+              size={16}
+              color={green}
+            />
+
+            <span
+              style={{
+                fontSize: isMobile ? 12 : 14,
+                fontWeight: 700,
+                color: "#fff",
+                letterSpacing: 0.4,
+              }}
+            >
+              {shortAddress(wallet.account)}
+            </span>
+
+            <div
+              style={{
+                width: 1,
+                height: 16,
+                background: "#333",
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={
+                wallet.disconnectWallet
+              }
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#ff6b6b",
+                fontWeight: 700,
+                fontSize: isMobile
+                  ? 11
+                  : 13,
+                cursor: "pointer",
+                padding: "2px 6px",
+              }}
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <NeonButton
+            onClick={
+              wallet.connectWallet
+            }
+          >
+            Connect Wallet
+          </NeonButton>
+        )}
+      </div>
+
       {/* LEFT: Logo + Branding */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: isMobile ? 10 : 16,
-          minWidth: 0,
-          flex: 1,
-        }}
-      >
-        {/* Logo */}
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: isMobile ? "center" : "flex-start",
+    gap: isMobile ? 10 : 16,
+    minWidth: 0,
+    flex: 1,
+    width: "100%",
+    order: isMobile ? 1 : 1,
+  }}
+>
+{/* Logo */}
 {PlanetZephyrosAE ? (
   <div
     style={{
@@ -53,7 +137,7 @@ export default function Header({
       muted
       playsInline
       style={{
-        height: isMobile ? 96 : 112,
+        height: isMobile ? 82 : 112,
         width: "auto",
         display: "block",
         pointerEvents: "none",
@@ -86,7 +170,8 @@ export default function Header({
     minWidth: 0,
     display: "flex",
     flexDirection: "column",
-    justifyContent: "center",
+    justifyContent: isMobile ? "center" : "flex-start",
+    textAlign: isMobile ? "center" : "left",
   }}
 >
             <div
@@ -180,84 +265,6 @@ export default function Header({
         </div>
       </div>
 
-      {/* RIGHT: Wallet */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: 8,
-          flexShrink: 0,
-        }}
-      >
-        {wallet.account ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: panel,
-              padding: "8px 14px",
-              borderRadius: 14,
-              border: `1px solid ${border}`,
-              boxShadow:
-                "0 0 12px rgba(0,0,0,0.45)",
-            }}
-          >
-            <Wallet
-              size={16}
-              color={green}
-            />
-
-            <span
-              style={{
-                fontSize: isMobile ? 12 : 14,
-                fontWeight: 700,
-                color: "#fff",
-                letterSpacing: 0.4,
-              }}
-            >
-              {shortAddress(wallet.account)}
-            </span>
-
-            <div
-              style={{
-                width: 1,
-                height: 16,
-                background: "#333",
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={
-                wallet.disconnectWallet
-              }
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "#ff6b6b",
-                fontWeight: 700,
-                fontSize: isMobile
-                  ? 11
-                  : 13,
-                cursor: "pointer",
-                padding: "2px 6px",
-              }}
-            >
-              Disconnect
-            </button>
-          </div>
-        ) : (
-          <NeonButton
-            onClick={
-              wallet.connectWallet
-            }
-          >
-            Connect Wallet
-          </NeonButton>
-        )}
-      </div>
     </div>
   );
 }
