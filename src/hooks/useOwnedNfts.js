@@ -1,15 +1,51 @@
 import { useCallback, useEffect, useState } from "react";
 import { BACKEND_URL } from "../config.js";
+import { ethers } from "ethers";
+import { EVG_CONTRACT_ADDRESS } from "../config.js";
+import EVGABI from "../abis/EVGABI.json";
 
-export function useOwnedNfts(account) {
+export function useOwnedNfts(account, provider) {
   const [ownedNFTs, setOwnedNFTs] = useState([]);
   const [mapping, setMapping] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+const verifyEvgOwnership = useCallback(
+  async (nfts) => {
+    if (!provider || !account) return nfts;
+
+    const evg = new ethers.Contract(
+      EVG_CONTRACT_ADDRESS,
+      EVGABI,
+      provider
+    );
+
+    const verified = [];
+
+    for (const nft of nfts) {
+      try {
+        const owner = await evg.ownerOf(BigInt(nft.tokenId));
+
+        if (owner.toLowerCase() === account.toLowerCase()) {
+          verified.push(nft);
+        }
+      } catch (err) {
+        console.warn(
+          `Could not verify EVG #${nft.tokenId}`,
+          err
+        );
+      }
+    }
+
+    return verified;
+  },
+  [provider, account]
+);
+
 const loadOwnedNfts = useCallback(async () => {
   if (!account) {
-    setOwnedNFTs([]);
+const verified = await verifyEvgOwnership(filtered);
+setOwnedNFTs(verified);
     return;
   }
 
@@ -54,7 +90,8 @@ const loadOwnedNfts = useCallback(async () => {
 
     console.log("Filtered EVG NFTs:", filtered);
 
-    setOwnedNFTs(filtered);
+    const verified = await verifyEvgOwnership(filtered);
+    setOwnedNFTs(verified);
     setMapping(data.mapping || {});
   } catch (err) {
     console.error("loadOwnedNfts failed:", err);
@@ -62,7 +99,7 @@ const loadOwnedNfts = useCallback(async () => {
   } finally {
     setLoading(false);
   }
-}, [account]);
+}, [account, verifyEvgOwnership]);
 
   useEffect(() => {
     loadOwnedNfts();
@@ -124,7 +161,8 @@ const refreshOwnedNfts = useCallback(async () => {
       );
     });
 
-    setOwnedNFTs(filtered);
+const verified = await verifyEvgOwnership(filtered);
+setOwnedNFTs(verified);
     setMapping(data.mapping || {});
     setMessage("NFT cache refreshed.");
   } catch (err) {
@@ -133,7 +171,7 @@ const refreshOwnedNfts = useCallback(async () => {
   } finally {
     setLoading(false);
   }
-}, [account]);
+}, [account, verifyEvgOwnership]);
   
   return {
     ownedNFTs,
