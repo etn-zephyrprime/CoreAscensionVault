@@ -55,14 +55,16 @@ export const appKitModal = createAppKit({
   defaultNetwork: electroneum,
   projectId: PROJECT_ID,
   metadata,
-  enableInjected: false,
+  featuredWalletIds: [],
+  includeWalletIds: [
+    // add wallet ids here later if you want to restrict shown wallets
+  ],
   features: {
     analytics: true,
     email: false,
     socials: false,
   },
 });
-
 const readOnlyProvider = new ethers.JsonRpcProvider(RPC_URL);
 
 export function useCoreAscensionWallet() {
