@@ -110,26 +110,26 @@ const connectWallet = useCallback(async () => {
     }
   }, [disconnect]);
 
-  const ensureCorrectNetwork = useCallback(async () => {
-    if (!isConnected || !walletProvider) {
-      throw new Error("Wallet not connected");
+const isMobileDevice =
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+const ensureCorrectNetwork = useCallback(async () => {
+  if (!isConnected || !walletProvider) {
+    throw new Error("Wallet not connected");
+  }
+
+  const currentChainId = caipNetwork?.id ? Number(caipNetwork.id) : null;
+
+  if (currentChainId !== CHAIN_ID) {
+    if (isMobileDevice) {
+      throw new Error(
+        "Please open your wallet, add/select Electroneum Mainnet, then reconnect with WalletConnect."
+      );
     }
 
-    const currentChainId = caipNetwork?.id ? Number(caipNetwork.id) : null;
-
-    if (currentChainId !== CHAIN_ID) {
-      await switchNetwork(electroneum);
-    }
-  }, [isConnected, walletProvider, caipNetwork?.id, switchNetwork]);
-
-  const getSigner = useCallback(async () => {
-    if (!isConnected || !walletProvider) {
-      throw new Error("Wallet not connected");
-    }
-
-    const browserProvider = new ethers.BrowserProvider(walletProvider);
-    return browserProvider.getSigner();
-  }, [isConnected, walletProvider]);
+    await switchNetwork(electroneum);
+  }
+}, [isConnected, walletProvider, caipNetwork?.id, switchNetwork]);
 
   return {
     provider,
