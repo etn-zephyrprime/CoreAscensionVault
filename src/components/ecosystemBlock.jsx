@@ -27,15 +27,6 @@ export default function EcosystemBlock({
 },
     {
       type: "card",
-      linkKey: "website",
-      label: "Website",
-      alt: "Zephyros Planet ETN",
-      videoSrc: PlanetZephyrosAE,
-      imageScale: 1.08, // 👈 add this
-      url: "https://planetetn.org/zephyros",
-    },
-    {
-      type: "card",
       linkKey: "electroswap",
       label: "Buy CORE",
       alt: "Buy CORE",
@@ -51,6 +42,15 @@ export default function EcosystemBlock({
       imageSrc: TelegramLogo,
       imageScale: 1.0,
       url: "https://t.me/PlanetZephyros",
+    },
+    {
+      type: "card",
+      linkKey: "website",
+      label: "Website",
+      alt: "Zephyros Planet ETN",
+      videoSrc: PlanetZephyrosAE,
+      imageScale: 1.08, // 👈 add this
+      url: "https://planetetn.org/zephyros",
     },
     {
       type: "card",

@@ -17,8 +17,8 @@ export default function VaultStats({ vaultData, isMobile }) {
       style={{
         display: "grid",
         gridTemplateColumns: isMobile
-          ? "1fr 1fr"
-          : "repeat(4, minmax(0, 1fr))",
+  ? "1fr"
+  : "repeat(4, minmax(0, 1fr))",
         gap: 12,
         marginBottom: 12,
       }}
