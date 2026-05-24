@@ -55,6 +55,7 @@ export const appKitModal = createAppKit({
   defaultNetwork: electroneum,
   projectId: PROJECT_ID,
   metadata,
+  enableInjected: false,
   features: {
     analytics: true,
     email: false,
@@ -88,16 +89,16 @@ export function useCoreAscensionWallet() {
     }
   }, [isConnected, walletProvider]);
 
-  const connectWallet = useCallback(async () => {
-    try {
-      await open({
-        view: "Connect",
-        namespace: "eip155",
-      });
-    } catch (err) {
-      console.error("Connect wallet failed:", err);
-    }
-  }, [open]);
+const connectWallet = useCallback(async () => {
+  try {
+    await open({
+      view: "Connect",
+      namespace: "eip155",
+    });
+  } catch (err) {
+    console.error("Connect wallet failed:", err);
+  }
+}, [open]);
 
   const disconnectWallet = useCallback(async () => {
     try {
