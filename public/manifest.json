@@ -1,0 +1,28 @@
+{
+  "name": "Planet Zephyros Staking",
+  "short_name": "Zephyros Staking",
+  "description": "Stake CORE with Guardians of Erevos. Absorb the emissions of Zephyros. Rise Through Ascension.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#18bb1a",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/PlanetZephyrosLogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/PlanetZephyrosLogo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["finance", "gaming"],
+  "lang": "en",
+  "prefer_related_applications": false
+}
