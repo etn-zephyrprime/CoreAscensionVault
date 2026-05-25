@@ -10,37 +10,37 @@ export function useOwnedNfts(account, provider) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-const verifyEvgOwnership = useCallback(
-  async (nfts) => {
-    if (!provider || !account) return nfts;
+//const verifyEvgOwnership = useCallback(
+// async (nfts) => {
+//    if (!provider || !account) return nfts;
 
-    const evg = new ethers.Contract(
-      EVG_CONTRACT_ADDRESS,
-      EVGABI,
-      provider
-    );
+//    const evg = new ethers.Contract(
+//      EVG_CONTRACT_ADDRESS,
+//      EVGABI,
+//      provider
+//    );
 
-    const verified = [];
+//    const verified = [];
 
-    for (const nft of nfts) {
-      try {
-        const owner = await evg.ownerOf(nft.tokenId);
+//    for (const nft of nfts) {
+//      try {
+//        const owner = await evg.ownerOf(nft.tokenId);
 
-        if (owner.toLowerCase() === account.toLowerCase()) {
-          verified.push(nft);
-        }
-      } catch (err) {
-        console.warn(
-          `Could not verify EVG #${nft.tokenId}`,
-          err
-        );
-      }
-    }
+//        if (owner.toLowerCase() === account.toLowerCase()) {
+//          verified.push(nft);
+//        }
+//      } catch (err) {
+//        console.warn(
+//          `Could not verify EVG #${nft.tokenId}`,
+//          err
+//        );
+//      }
+//    }
 
-    return verified;
-  },
-  [provider, account]
-);
+//    return verified;
+//  },
+//  [provider, account]
+//);
 
 const loadOwnedNfts = useCallback(async () => {
   if (!account) {
@@ -91,8 +91,9 @@ setOwnedNFTs(filtered);
 
     console.log("Filtered EVG NFTs:", filtered);
 
-    const verified = await verifyEvgOwnership(filtered);
-    setOwnedNFTs(verified);
+//    const verified = await verifyEvgOwnership(filtered);
+//    setOwnedNFTs(verified);
+    setOwnedNFTs(filtered);
     setMapping(data.mapping || {});
   } catch (err) {
     console.error("loadOwnedNfts failed:", err);
@@ -100,7 +101,7 @@ setOwnedNFTs(filtered);
   } finally {
     setLoading(false);
   }
-}, [account, verifyEvgOwnership]);
+}, [account]); // verifyEvgOwnership
 
   useEffect(() => {
     loadOwnedNfts();
@@ -162,7 +163,7 @@ const refreshOwnedNfts = useCallback(async () => {
       );
     });
 
-const verified = await verifyEvgOwnership(filtered);
+//const verified = await verifyEvgOwnership(filtered);
 setOwnedNFTs(verified);
     setMapping(data.mapping || {});
     setMessage("NFT cache refreshed.");
@@ -172,7 +173,7 @@ setOwnedNFTs(verified);
   } finally {
     setLoading(false);
   }
-}, [account, verifyEvgOwnership]);
+}, [account]); // verifyEvgOwnership
   
   return {
     ownedNFTs,
