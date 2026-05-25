@@ -4,7 +4,7 @@ import { useVaultData } from "./hooks/useVaultData.js";
 import { useIsMobile } from "./hooks/useIsMobile.js";
 
 import Header from "./components/Header.jsx";
-import VaultStats from "./components/vaultStats.jsx";
+import VaultStats from "./components/VaultStats.jsx";
 import VaultPosition from "./components/VaultPosition.jsx";
 import NftHangar from "./components/NftHangar.jsx";
 import VaultIntelligence from "./components/VaultIntelligence.jsx";
