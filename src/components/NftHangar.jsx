@@ -29,7 +29,7 @@ const {
   message,
   reloadOwnedNfts,
   refreshOwnedNfts,
-} = useOwnedNfts(wallet.account, wallet.provider);
+} = useOwnedNfts(wallet.account);
 
 const [stakedNfts, setStakedNfts] = useState([]);
 const [selectedStakedNft, setSelectedStakedNft] = useState(null);
