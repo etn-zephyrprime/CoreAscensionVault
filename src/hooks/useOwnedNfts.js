@@ -44,9 +44,9 @@ const verifyEvgOwnership = useCallback(
 
 const loadOwnedNfts = useCallback(async () => {
   if (!account) {
-const verified = await verifyEvgOwnership(filtered);
-setOwnedNFTs(verified);
-//setOwnedNFTs(filtered);
+//const verified = await verifyEvgOwnership(filtered);
+//setOwnedNFTs(verified);
+setOwnedNFTs(filtered);
     return;
   }
 
