@@ -24,7 +24,7 @@ const verifyEvgOwnership = useCallback(
 
     for (const nft of nfts) {
       try {
-        const owner = await evg.ownerOf(BigInt(nft.tokenId));
+        const owner = await evg.ownerOf(nft.tokenId);
 
         if (owner.toLowerCase() === account.toLowerCase()) {
           verified.push(nft);
@@ -46,6 +46,7 @@ const loadOwnedNfts = useCallback(async () => {
   if (!account) {
 const verified = await verifyEvgOwnership(filtered);
 setOwnedNFTs(verified);
+//setOwnedNFTs(filtered);
     return;
   }
 
