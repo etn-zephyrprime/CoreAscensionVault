@@ -4,7 +4,7 @@ import { useVaultData } from "./hooks/useVaultData.js";
 import { useIsMobile } from "./hooks/useIsMobile.js";
 
 import Header from "./components/Header.jsx";
-import VaultStats from "./components/VaultStats.jsx";
+import VaultStats from "./components/vaultStats.jsx";
 import VaultPosition from "./components/VaultPosition.jsx";
 import NftHangar from "./components/NftHangar.jsx";
 import VaultIntelligence from "./components/VaultIntelligence.jsx";
@@ -14,7 +14,7 @@ import EcosystemBlock from "./components/ecosystemBlock.jsx";
 import {
   CoreClashLogo, AppBackground, PlanetZephyrosAE, ElectroSwap,
   VerdantKinBanner, ElectroneumLogo, AetherScionsBanner, VerdantQueenBanner, EtnClubLogo, EvgBanner, 
-  TelegramLogo, XLogo, PlanetZephyrosLogo
+  TelegramLogo, XLogo, PlanetZephyrosLogo, AscensionsBackground
 } from "./appMedia/media.js";
 
 export default function App() {
@@ -52,6 +52,7 @@ export default function App() {
         }
       `}</style>
 
+{/* Background Radial Gradient Overlay */}
       <div
         style={{
           position: "fixed",
@@ -64,6 +65,23 @@ export default function App() {
         }}
       />
 
+{/* ---------------- DEBUG WATERMARK ---------------- */}
+<div
+  style={{
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "#0a0a0a",
+    backgroundImage: `url(${AscensionsBackground})`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    opacity: 0.45,
+    pointerEvents: "none",
+    zIndex: -1,
+  }}
+/>
+
+{/* Main Content */}
       <div style={{ position: "relative", zIndex: 1 }}>
 <Header
   wallet={wallet}

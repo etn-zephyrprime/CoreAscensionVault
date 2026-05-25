@@ -11,6 +11,7 @@ import EtnClubImg from "./etnClub.jpg";
 import TelegramLogoImg from "./TelegramLogo.png";
 import XLogoImg from "./XLogo.png";
 import PlanetZephyrosLogoImg from "./PlanetZephyrosLogo.png";
+import CanyonsImg from "./Canyons.png";
 
 export const CoreClashLogo = CoreClashLogoImg;
 export const PlanetZephyrosAE = PlanetZephyrosAEVideo;
@@ -25,3 +26,4 @@ export const EtnClubLogo = EtnClubImg;
 export const TelegramLogo = TelegramLogoImg;
 export const XLogo = XLogoImg;
 export const PlanetZephyrosLogo = PlanetZephyrosLogoImg;
+export const AscensionsBackground = CanyonsImg;
