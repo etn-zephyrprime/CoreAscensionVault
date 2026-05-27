@@ -90,7 +90,7 @@ export default function VaultIntelligence({
         >
           <InfoRow
             label="Reward Schedule"
-            value="Block Based"
+            value="5 Sec Blocks"
           />
 
           <InfoRow

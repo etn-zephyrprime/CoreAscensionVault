@@ -26,7 +26,7 @@ export default function VaultStats({ vaultData, isMobile }) {
 <StatBox
   isMobile={isMobile}
   icon={<Shield size={20} />}
-  label="Current APR"
+  label="Current APY"
   value={`${formatNumber(data.currentApr, 2)}%`}
 />
 
