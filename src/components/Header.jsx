@@ -27,18 +27,18 @@ export default function Header({
       }}
     >
       {/* RIGHT: Wallet */}
-<div
-  style={{
-    display: "flex",
-    justifyContent: isMobile ? "flex-end" : "flex-end",
-    alignItems: "center",
-    width: isMobile ? "100%" : "auto",
-    gap: 8,
-    flexShrink: 0,
-    order: isMobile ? 0 : 2,
-  }}
->
-          {wallet.account ? (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: isMobile ? "center" : "flex-end",   // Centered on mobile
+          alignItems: "center",
+          width: isMobile ? "100%" : "auto",
+          gap: 8,
+          flexShrink: 0,
+          order: isMobile ? 0 : 2,
+        }}
+      >
+        {wallet.account ? (
           <div
             style={{
               display: "flex",
@@ -48,15 +48,10 @@ export default function Header({
               padding: "8px 14px",
               borderRadius: 14,
               border: `1px solid ${border}`,
-              boxShadow:
-                "0 0 12px rgba(0,0,0,0.45)",
+              boxShadow: "0 0 12px rgba(0,0,0,0.45)",
             }}
           >
-            <Wallet
-              size={16}
-              color={green}
-            />
-
+            <Wallet size={16} color={green} />
             <span
               style={{
                 fontSize: isMobile ? 12 : 14,
@@ -67,28 +62,16 @@ export default function Header({
             >
               {shortAddress(wallet.account)}
             </span>
-
-            <div
-              style={{
-                width: 1,
-                height: 16,
-                background: "#333",
-              }}
-            />
-
+            <div style={{ width: 1, height: 16, background: "#333" }} />
             <button
               type="button"
-              onClick={
-                wallet.disconnectWallet
-              }
+              onClick={wallet.disconnectWallet}
               style={{
                 background: "transparent",
                 border: "none",
                 color: "#ff6b6b",
                 fontWeight: 700,
-                fontSize: isMobile
-                  ? 11
-                  : 13,
+                fontSize: isMobile ? 11 : 13,
                 cursor: "pointer",
                 padding: "2px 6px",
               }}
@@ -97,171 +80,153 @@ export default function Header({
             </button>
           </div>
         ) : (
-          <NeonButton
-            onClick={
-              wallet.connectWallet
-            }
-          >
+          <NeonButton onClick={wallet.connectWallet}>
             Connect Wallet
           </NeonButton>
         )}
       </div>
 
       {/* LEFT: Logo + Branding */}
-<div
-  style={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: isMobile ? "center" : "flex-start",
-    gap: isMobile ? 10 : 16,
-    minWidth: 0,
-    flex: 1,
-    width: "100%",
-    order: isMobile ? 1 : 1,
-  }}
->
-{/* Logo */}
-{PlanetZephyrosAE ? (
-  <div
-    style={{
-      height: "100%",
-      display: "flex",
-      alignItems: "center",
-      flexShrink: 0,
-    }}
-  >
-    <video
-      src={PlanetZephyrosAE}
-      autoPlay
-      loop
-      muted
-      playsInline
-      style={{
-        height: isMobile ? 82 : 112,
-        width: "auto",
-        display: "block",
-        pointerEvents: "none",
-        animation:
-          "logoPulse 2.4s ease-in-out infinite",
-        filter:
-          "drop-shadow(0 0 14px rgba(0,255,140,0.18))",
-        borderRadius: 12,
-        objectFit: "contain",
-      }}
-    />
-  </div>
-) : (
-  <div
-    style={{
-      width: isMobile ? 90 : 140,
-      height: isMobile ? 90 : 140,
-      borderRadius: 16,
-      background:
-        "linear-gradient(145deg,#111,#181818)",
-      border: `1px solid ${border}`,
-      boxShadow:
-        "0 0 18px rgba(0,255,140,0.12)",
-    }}
-  />
-)}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: isMobile ? "center" : "flex-start",
+          gap: isMobile ? 12 : 16,
+          minWidth: 0,
+          flex: 1,
+          width: "100%",
+          order: isMobile ? 1 : 1,
+        }}
+      >
+        {/* Planet Zephyros Video Logo */}
+        {PlanetZephyrosAE ? (
+          <div
+            style={{
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <video
+              src={PlanetZephyrosAE}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                height: isMobile ? 82 : 112,
+                width: "auto",
+                display: "block",
+                pointerEvents: "none",
+                animation: "logoPulse 2.4s ease-in-out infinite",
+                filter: "drop-shadow(0 0 14px rgba(0,255,140,0.18))",
+                borderRadius: 12,
+                objectFit: "contain",
+              }}
+            />
+          </div>
+        ) : null}
 
-{/* Text */}
-<div
-  style={{
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: isMobile ? "center" : "flex-start",
-    textAlign: isMobile ? "center" : "left",
-  }}
->
-  <div
-    style={{
-      fontSize: isMobile ? 10 : 12,
-      color: "#7c7c7c",
-      textTransform: "uppercase",
-      letterSpacing: 2,
-      fontWeight: 700,
-      marginBottom: 4,
-    }}
-  >
-    Planet Zephyros
-  </div>
+        {/* Text + CoreAscension Logo */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: isMobile ? "center" : "flex-start",   // ← Key change
+            textAlign: isMobile ? "center" : "left",
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              fontSize: isMobile ? 10 : 12,
+              color: "#7c7c7c",
+              textTransform: "uppercase",
+              letterSpacing: 2,
+              fontWeight: 700,
+              marginBottom: 4,
+            }}
+          >
+            Planet Zephyros
+          </div>
 
-  {/* === REPLACED WITH LOGO === */}
-  <img
-    src={CoreAscensionLogo}
-    alt="Core Ascension"
-    style={{
-      margin: 0,
-      width: isMobile ? "85%" : "520px",
-      maxWidth: "100%",
-      height: "auto",
-      filter: "drop-shadow(0 0 18px rgba(0,255,140,0.45))",
-      animation: "vaultPulse 2.2s infinite",
-      objectFit: "contain",
-    }}
-  />
+          {/* Core Ascension Logo */}
+          <img
+            src={CoreAscensionLogo}
+            alt="Core Ascension"
+            style={{
+              margin: 0,
+              width: isMobile ? "280px" : "520px",     // Better mobile width
+              maxWidth: "100%",
+              height: "auto",
+              filter: "drop-shadow(0 0 18px rgba(0,255,140,0.45))",
+              animation: "vaultPulse 2.2s infinite",
+              objectFit: "contain",
+            }}
+          />
 
-<div
-  style={{
-    marginTop: 6,
-    display: "flex",
-    flexDirection: "column",
-    gap: 1,
-    maxWidth: 540,
-  }}
->
-  <div
-    style={{
-      fontSize: isMobile ? 11 : 14,
-      color: "#cfcfcf",
-      lineHeight: 1.35,
-      fontWeight: 500,
-      letterSpacing: 0.2,
-    }}
-  >
-    Stake <span style={{ color: "#18bb1a", fontWeight: 800 }}>CORE</span> with{" "}
-    <span
-      style={{
-        color: "#ffcc66",
-        fontWeight: 700,
-        textShadow:
-          "0 0 8px rgba(255,204,102,0.18)",
-      }}
-    >
-      Guardians of Erevos
-    </span>
-    .
-  </div>
+          {/* Guardians of Erevos Text */}
+          <div
+            style={{
+              marginTop: 6,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+              maxWidth: isMobile ? "320px" : "540px",   // Constrain on mobile
+              alignItems: isMobile ? "center" : "flex-start",
+              textAlign: isMobile ? "center" : "left",
+            }}
+          >
+            <div
+              style={{
+                fontSize: isMobile ? 11 : 14,
+                color: "#cfcfcf",
+                lineHeight: 1.35,
+                fontWeight: 500,
+                letterSpacing: 0.2,
+              }}
+            >
+              Stake <span style={{ color: "#18bb1a", fontWeight: 800 }}>CORE</span> with{" "}
+              <span
+                style={{
+                  color: "#ffcc66",
+                  fontWeight: 700,
+                  textShadow: "0 0 8px rgba(255,204,102,0.18)",
+                }}
+              >
+                Guardians of Erevos
+              </span>
+              .
+            </div>
 
-  <div
-    style={{
-      fontSize: isMobile ? 11 : 14,
-      color: "#aaa",
-      lineHeight: 1.35,
-      letterSpacing: 0.3,
-    }}
-  >
-    Absorb the emissions of Zephyros.
-  </div>
+            <div
+              style={{
+                fontSize: isMobile ? 11 : 14,
+                color: "#aaa",
+                lineHeight: 1.35,
+                letterSpacing: 0.3,
+              }}
+            >
+              Absorb the emissions of Zephyros.
+            </div>
 
-  <div
-    style={{
-      fontSize: isMobile ? 11 : 13,
-      fontWeight: 800,
-      textTransform: "uppercase",
-      letterSpacing: 1,
-      color: "#18bb1a",
-      textShadow:
-        "0 0 12px rgba(24,187,26,0.28)",
-    }}
-  >
-    Rise Through Ascension
-  </div>
-</div>
+            <div
+              style={{
+                fontSize: isMobile ? 11 : 13,
+                fontWeight: 800,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+                color: "#18bb1a",
+                textShadow: "0 0 12px rgba(24,187,26,0.28)",
+              }}
+            >
+              Rise Through Ascension
+            </div>
+          </div>
         </div>
       </div>
-      </div>
+    </div>
   );
 }
