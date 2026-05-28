@@ -202,7 +202,6 @@ export default function Header({
       objectFit: "contain",
     }}
   />
-</div>
 
 <div
   style={{
@@ -262,6 +261,7 @@ export default function Header({
   </div>
 </div>
         </div>
+      </div>
       </div>
   );
 }
