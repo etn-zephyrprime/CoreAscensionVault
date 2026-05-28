@@ -134,8 +134,8 @@ export default function Header({
           style={{
             display: "flex",
             flexDirection: "column",
-            alignItems: isMobile ? "center" : "flex-start",   // ← Key change
-            textAlign: isMobile ? "center" : "left",
+            alignItems: isMobile ? "center" : "center",   // ← Key change
+            textAlign: isMobile ? "center" : "center",
             minWidth: 0,
           }}
         >
