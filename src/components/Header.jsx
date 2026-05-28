@@ -3,7 +3,7 @@ import { Wallet } from "lucide-react";
 
 import NeonButton from "./NeonButton.jsx";
 import { green, panel, border } from "../styles/theme.js";
-import { PlanetZephyrosAE } from "../appMedia/media.js";
+import { PlanetZephyrosAE, CoreAscensionLogo } from "../appMedia/media.js";
 
 function shortAddress(address) {
   if (!address) return "";
@@ -164,7 +164,8 @@ export default function Header({
     }}
   />
 )}
-        {/* Text */}
+
+{/* Text */}
 <div
   style={{
     minWidth: 0,
@@ -174,36 +175,34 @@ export default function Header({
     textAlign: isMobile ? "center" : "left",
   }}
 >
-            <div
-            style={{
-              fontSize: isMobile ? 10 : 12,
-              color: "#7c7c7c",
-              textTransform: "uppercase",
-              letterSpacing: 2,
-              fontWeight: 700,
-              marginBottom: 4,
-            }}
-          >
-            Planet Zephyros
-          </div>
+  <div
+    style={{
+      fontSize: isMobile ? 10 : 12,
+      color: "#7c7c7c",
+      textTransform: "uppercase",
+      letterSpacing: 2,
+      fontWeight: 700,
+      marginBottom: 4,
+    }}
+  >
+    Planet Zephyros
+  </div>
 
-          <h1
-            style={{
-              margin: 0,
-              fontWeight: 900,
-              fontSize: isMobile ? 28 : 42,
-              lineHeight: 0.95,
-              letterSpacing: isMobile ? 1 : 2,
-              textTransform: "uppercase",
-              color: green,
-              textShadow:
-                "0 0 18px rgba(0,255,140,0.35)",
-              animation:
-                "vaultPulse 2.2s infinite",
-            }}
-          >
-            CORE ASCENSION
-          </h1>
+  {/* === REPLACED WITH LOGO === */}
+  <img
+    src={CoreAscensionLogo}
+    alt="Core Ascension"
+    style={{
+      margin: 0,
+      width: isMobile ? "85%" : "520px",
+      maxWidth: "100%",
+      height: "auto",
+      filter: "drop-shadow(0 0 18px rgba(0,255,140,0.45))",
+      animation: "vaultPulse 2.2s infinite",
+      objectFit: "contain",
+    }}
+  />
+</div>
 
 <div
   style={{
@@ -264,7 +263,5 @@ export default function Header({
 </div>
         </div>
       </div>
-
-    </div>
   );
 }
