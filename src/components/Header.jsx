@@ -26,11 +26,11 @@ export default function Header({
         marginBottom: 10,
       }}
     >
-      {/* RIGHT: Wallet */}
+      {/* WALLET SECTION - Right aligned on mobile */}
       <div
         style={{
           display: "flex",
-          justifyContent: isMobile ? "center" : "flex-end",   // Centered on mobile
+          justifyContent: isMobile ? "flex-end" : "flex-end",   // ← Right aligned on mobile
           alignItems: "center",
           width: isMobile ? "100%" : "auto",
           gap: 8,
@@ -86,12 +86,12 @@ export default function Header({
         )}
       </div>
 
-      {/* LEFT: Logo + Branding */}
+      {/* BRANDING SECTION - Centered on mobile */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: isMobile ? "center" : "flex-start",
+          justifyContent: isMobile ? "center" : "center",
           gap: isMobile ? 12 : 16,
           minWidth: 0,
           flex: 1,
@@ -134,8 +134,8 @@ export default function Header({
           style={{
             display: "flex",
             flexDirection: "column",
-            alignItems: isMobile ? "center" : "center",   // ← Key change
-            textAlign: isMobile ? "center" : "center",
+            alignItems: isMobile ? "center" : "center",
+            textAlign: isMobile ? "center" : "left",
             minWidth: 0,
           }}
         >
@@ -158,7 +158,7 @@ export default function Header({
             alt="Core Ascension"
             style={{
               margin: 0,
-              width: isMobile ? "280px" : "520px",     // Better mobile width
+              width: isMobile ? "280px" : "520px",
               maxWidth: "100%",
               height: "auto",
               filter: "drop-shadow(0 0 18px rgba(0,255,140,0.45))",
@@ -174,9 +174,9 @@ export default function Header({
               display: "flex",
               flexDirection: "column",
               gap: 1,
-              maxWidth: isMobile ? "320px" : "540px",   // Constrain on mobile
-              alignItems: isMobile ? "center" : "flex-start",
-              textAlign: isMobile ? "center" : "left",
+              maxWidth: isMobile ? "320px" : "540px",
+              alignItems: isMobile ? "center" : "center",
+              textAlign: isMobile ? "center" : "center",
             }}
           >
             <div
