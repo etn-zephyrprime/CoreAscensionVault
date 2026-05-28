@@ -12,7 +12,7 @@ import TelegramLogoImg from "./TelegramLogo.png";
 import XLogoImg from "./XLogo.png";
 import PlanetZephyrosLogoImg from "./PlanetZephyrosLogo.png";
 import CanyonsImg from "./Canyons.png";
-import CoreAscensionLogoImg from "./CoreAscensionLogo.png";
+import CoreAscensionLogoImg from "./CoreAscension.png";
 
 export const CoreClashLogo = CoreClashLogoImg;
 export const PlanetZephyrosAE = PlanetZephyrosAEVideo;
