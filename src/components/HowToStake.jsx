@@ -30,23 +30,26 @@ export default function HowToStake({ isMobile }) {
       {open && (
         <div
           onClick={() => setOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.78)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-            zIndex: 9999,
-          }}
+style={{
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.78)",
+  backdropFilter: "blur(4px)",
+  display: "flex",
+  alignItems: isMobile ? "flex-start" : "center",
+  justifyContent: "center",
+  overflowY: "auto",
+  padding: isMobile ? "24px 14px" : 20,
+  zIndex: 9999,
+}}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "100%",
               maxWidth: 620,
+              maxHeight: isMobile ? "calc(100vh - 48px)" : "90vh",
+              overflowY: "auto",
               background: "#0f0f0f",
               border: "1px solid #2f2f2f",
               borderRadius: 18,
