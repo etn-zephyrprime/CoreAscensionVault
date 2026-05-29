@@ -123,93 +123,93 @@ nextVaultData.stakeHistory = history;
 // ====================== HELPER FUNCTION ======================
 async function fetchStakeHistory(stakingContract, provider, totalCoreStaked, totalNftsStaked = 0) {
   try {
-    if (!provider || totalCoreStaked <= 0) {
-      return createFallbackHistory(totalCoreStaked, totalNftsStaked);
-    }
+    if (!provider) return createFallbackHistory(totalCoreStaked, totalNftsStaked);
 
     const currentBlock = await provider.getBlockNumber();
     const CONTRACT_CREATION_BLOCK = 13853455;
+    const CHUNK_SIZE = 25;                    // ← As you suggested
+    const MAX_HISTORY_BLOCKS = 8000;         // ~10-12 hours of data
 
-    console.log(`📊 Fetching history | Current block: ${currentBlock} | Total CORE: ${totalCoreStaked}`);
+    let fromBlock = Math.max(CONTRACT_CREATION_BLOCK, currentBlock - MAX_HISTORY_BLOCKS);
+
+    console.log(`📡 Fetching history in ${CHUNK_SIZE}-block chunks from ${fromBlock}`);
 
     const coreFilter = stakingContract.filters.CoreStaked();
     const nftFilter = stakingContract.filters.NFTStaked();
 
-    // Only fetch last 3-4 days to reduce RPC load
-    const fromBlock = Math.max(CONTRACT_CREATION_BLOCK, currentBlock - 12000);
+    const allCoreEvents = [];
+    const allNftEvents = [];
 
-    let coreEvents = [];
-    let nftEvents = [];
+    // Fetch in small chunks
+    for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE) {
+      const end = Math.min(start + CHUNK_SIZE - 1, currentBlock);
 
-    try {
-      [coreEvents, nftEvents] = await Promise.all([
-        stakingContract.queryFilter(coreFilter, fromBlock),
-        stakingContract.queryFilter(nftFilter, fromBlock)
-      ]);
-    } catch (e) {
-      console.warn("Event query failed, using current snapshot only");
+      try {
+        const [coreChunk, nftChunk] = await Promise.all([
+          stakingContract.queryFilter(coreFilter, start, end),
+          stakingContract.queryFilter(nftFilter, start, end)
+        ]);
+
+        allCoreEvents.push(...coreChunk);
+        allNftEvents.push(...nftChunk);
+
+        // Small delay to be nice to RPC
+        if (end < currentBlock) await new Promise(r => setTimeout(r, 80));
+      } catch (e) {
+        console.warn(`Chunk ${start}-${end} failed:`, e.message);
+      }
     }
 
-    console.log(`Found ${coreEvents.length} Core events and ${nftEvents.length} NFT events`);
+    console.log(`✅ Loaded ${allCoreEvents.length} core + ${allNftEvents.length} nft events`);
 
+    // Process events into daily data
     const dailyData = {};
-
-    // Process events (with reduced block fetching)
     const blockCache = new Map();
 
-    for (const event of coreEvents) {
+    // ... (same processing logic as before)
+    for (const event of allCoreEvents) {
       try {
         let block = blockCache.get(event.blockNumber);
         if (!block) {
           block = await provider.getBlock(event.blockNumber, false);
           blockCache.set(event.blockNumber, block);
         }
+        const dayKey = new Date(block.timestamp * 1000)
+          .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-        const date = new Date(block.timestamp * 1000);
-        const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-        if (!dailyData[dayKey]) {
-          dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-        }
+        if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
         dailyData[dayKey].coreStaked += Number(ethers.formatEther(event.args.amount || 0));
-      } catch (e) {}
+      } catch {}
     }
 
-    for (const event of nftEvents) {
+    for (const event of allNftEvents) {
       try {
         let block = blockCache.get(event.blockNumber);
         if (!block) {
           block = await provider.getBlock(event.blockNumber, false);
           blockCache.set(event.blockNumber, block);
         }
-
-        const date = new Date(block.timestamp * 1000);
-        const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const dayKey = new Date(block.timestamp * 1000)
+          .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
         if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
         dailyData[dayKey].nftsStaked += 1;
-      } catch (e) {}
+      } catch {}
     }
 
     let history = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
 
-    // Always add current day with latest totals (this ensures the chart is useful)
-    const todayKey = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (!dailyData[todayKey] || dailyData[todayKey].coreStaked < totalCoreStaked) {
-      dailyData[todayKey] = {
-        date: todayKey,
+    // Always ensure current day is shown with latest totals
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (history.length === 0 || history[history.length - 1].date !== today) {
+      history.push({
+        date: today,
         coreStaked: Math.floor(totalCoreStaked),
-        nftsStaked: totalNftsStaked || dailyData[todayKey]?.nftsStaked || 0
-      };
-      history = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
+        nftsStaked: totalNftsStaked
+      });
     }
 
-    if (history.length <= 1) {
-      console.log("Limited history available → Using enhanced fallback");
-      history = createFallbackHistory(totalCoreStaked, totalNftsStaked);
-    }
-
-    console.log("✅ Final chart data:", history);
+    console.log("Final chart data:", history);
     return history;
 
   } catch (err) {
@@ -223,7 +223,7 @@ function createFallbackHistory(totalCore, totalNfts) {
   const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   return [
-    { date: yesterday, coreStaked: Math.floor(totalCore * 0.65), nftsStaked: Math.floor(totalNfts * 0.7) },
-    { date: today, coreStaked: Math.floor(totalCore), nftsStaked: totalNfts || 45 },
+    { date: yesterday, coreStaked: Math.floor(totalCore * 0.72), nftsStaked: Math.floor(totalNfts * 0.8) },
+    { date: today, coreStaked: Math.floor(totalCore), nftsStaked: totalNfts || 0 }
   ];
 }
