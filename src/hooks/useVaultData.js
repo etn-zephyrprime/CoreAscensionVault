@@ -122,20 +122,40 @@ async function fetchStakeHistory(stakingContract, provider) {
     }
 
     const currentBlock = await provider.getBlockNumber();
-    const fromBlock = Math.max(0, currentBlock - 28000); // ~1.5–2 days of history
+    const MAX_RANGE = 2000; // Safe limit for Ankr
+    let fromBlock = Math.max(0, currentBlock - 20000); // Look back ~1 day+
 
-    console.log(`Fetching stake history from block ${fromBlock} to ${currentBlock}`);
+    console.log(`Fetching stake history from block ${fromBlock} to ${currentBlock} in chunks...`);
 
     const coreFilter = stakingContract.filters.CoreStaked();
     const nftFilter = stakingContract.filters.NFTStaked();
 
-    const coreEvents = await stakingContract.queryFilter(coreFilter, fromBlock);
-    const nftEvents = await stakingContract.queryFilter(nftFilter, fromBlock);
+    const allCoreEvents = [];
+    const allNftEvents = [];
+
+    // Fetch in chunks
+    while (fromBlock <= currentBlock) {
+      const toBlock = Math.min(fromBlock + MAX_RANGE - 1, currentBlock);
+
+      console.log(`Querying chunk: ${fromBlock} → ${toBlock}`);
+
+      const [coreChunk, nftChunk] = await Promise.all([
+        stakingContract.queryFilter(coreFilter, fromBlock, toBlock),
+        stakingContract.queryFilter(nftFilter, fromBlock, toBlock)
+      ]);
+
+      allCoreEvents.push(...coreChunk);
+      allNftEvents.push(...nftChunk);
+
+      fromBlock = toBlock + 1;
+    }
+
+    console.log(`Total events found - Core: ${allCoreEvents.length}, NFTs: ${allNftEvents.length}`);
 
     const dailyData = {};
 
     // Process CoreStaked events
-    for (const event of coreEvents) {
+    for (const event of allCoreEvents) {
       try {
         const block = await provider.getBlock(event.blockNumber, false);
         const date = new Date(block.timestamp * 1000);
@@ -151,7 +171,7 @@ async function fetchStakeHistory(stakingContract, provider) {
     }
 
     // Process NFTStaked events
-    for (const event of nftEvents) {
+    for (const event of allNftEvents) {
       try {
         const block = await provider.getBlock(event.blockNumber, false);
         const date = new Date(block.timestamp * 1000);
@@ -169,7 +189,7 @@ async function fetchStakeHistory(stakingContract, provider) {
     let history = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
 
     if (history.length === 0) {
-      console.log("No recent staking activity found — showing fallback data");
+      console.log("No recent staking activity — using fallback");
       history = [
         { date: "May 25", coreStaked: 145000, nftsStaked: 98 },
         { date: "May 26", coreStaked: 158000, nftsStaked: 112 },
@@ -178,7 +198,7 @@ async function fetchStakeHistory(stakingContract, provider) {
       ];
     }
 
-    console.log("✅ Stake history loaded:", history);
+    console.log("✅ Final Stake History:", history);
     return history;
 
   } catch (err) {
