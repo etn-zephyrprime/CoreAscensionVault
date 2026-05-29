@@ -93,7 +93,8 @@ nextVaultData = {
       }
 
 // === NEW: Load On-Chain Stake History ===
-      const history = await fetchStakeHistory(staking);
+      // === NEW: Load On-Chain Stake History ===
+      const history = await fetchStakeHistory(staking, provider);
       nextVaultData.stakeHistory = history;
 
       setVaultData(nextVaultData);
