@@ -96,28 +96,33 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
             VAULT METRICS OVER TIME
           </div>
 
-          <ResponsiveContainer width="100%" height={isMobile ? 280 : 360}>
+          <ResponsiveContainer width="100%" height={isMobile ? 300 : 380}>
             <LineChart data={stakeHistory}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222" />
               <XAxis dataKey="date" stroke="#666" fontSize={12} />
               
               <YAxis yAxisId="core" stroke={green} tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
               <YAxis yAxisId="nft" orientation="right" stroke="#ffcc66" />
-              <YAxis yAxisId="rewards" orientation="right" stroke="#ff8a3d" />
+              <YAxis yAxisId="rewards" orientation="right" stroke="#ff8a3d" tickFormatter={(v) => `${(v/1000).toFixed(0)}k`} />
               <YAxis yAxisId="apy" orientation="left" stroke="#00d4ff" />
 
-              <Tooltip contentStyle={{ backgroundColor: "#111", border: "1px solid #444", borderRadius: 8 }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: "#111", border: "1px solid #444", borderRadius: 8 }}
+                formatter={(value, name) => {
+                  if (name === "Rewards Remaining") return [`${value.toLocaleString()} CORE`, name];
+                  if (name === "APY %") return [`${value.toFixed(2)}%`, name];
+                  return [value.toLocaleString(), name];
+                }}
+              />
               <Legend />
 
-              <Line yAxisId="core" type="natural" dataKey="coreStaked" stroke={green} strokeWidth={3.5} dot={{ r: 5 }} name="CORE Staked" />
-              <Line yAxisId="nft" type="natural" dataKey="nftsStaked" stroke="#ffcc66" strokeWidth={3} dot={{ r: 4 }} name="NFTs Staked" />
-              
-              {/* New Lines */}
-              <Line yAxisId="rewards" type="natural" dataKey="rewardsRemaining" stroke="#ff8a3d" strokeWidth={2.5} dot={{ r: 4 }} name="Rewards Remaining" />
-              <Line yAxisId="apy" type="natural" dataKey="currentApr" stroke="#00d4ff" strokeWidth={2.5} dot={{ r: 4 }} name="APY %" />
+              <Line yAxisId="core" dataKey="coreStaked" stroke={green} strokeWidth={3.5} name="CORE Staked" />
+              <Line yAxisId="nft" dataKey="nftsStaked" stroke="#ffcc66" strokeWidth={3} name="NFTs Staked" />
+              <Line yAxisId="rewards" dataKey="rewardsRemaining" stroke="#ff8a3d" strokeWidth={2.8} name="Rewards Remaining" />
+              <Line yAxisId="apy" dataKey="currentApr" stroke="#00d4ff" strokeWidth={2.5} name="APY %" />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+          </div>
 
         {/* CORE Burn Section */}
         <div
