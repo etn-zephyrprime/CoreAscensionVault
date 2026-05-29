@@ -10,6 +10,7 @@ import NftHangar from "./components/NftHangar.jsx";
 import VaultIntelligence from "./components/VaultIntelligence.jsx";
 import Footer from "./components/Footer.jsx";
 import EcosystemBlock from "./components/ecosystemBlock.jsx";
+import HowToStake from "./components/HowToStake.jsx";
 
 import {
   CoreClashLogo, AppBackground, PlanetZephyrosAE, ElectroSwap,
@@ -101,6 +102,8 @@ export default function App() {
     EvgBanner={EvgBanner}
   />
 </div>
+
+        <HowToStake isMobile={isMobile} />
 
         <VaultStats vaultData={vaultData} isMobile={isMobile} />
 
