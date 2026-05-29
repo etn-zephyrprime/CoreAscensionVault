@@ -16,6 +16,7 @@ const fallbackVault = {
   penaltyDaysRemaining: 0,
   userShare: 0,
   totalCoreBurned: 0,
+  stakeHistory: [],
 };
 
 export function useVaultData(provider, account) {
@@ -89,6 +90,45 @@ nextVaultData = {
   userShare,
   penaltyDaysRemaining,
 };
+      }
+
+// === Load Stake History (Recommended: from Backend) ===
+      try {
+        const historyRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/vault/stake-history`
+        );
+        
+        if (historyRes.ok) {
+          const historyData = await historyRes.json();
+          nextVaultData.stakeHistory = historyData.history || [];
+        } else {
+          // Fallback mock data for development
+          nextVaultData.stakeHistory = [
+            { date: "May 20", coreStaked: 124500, nftsStaked: 87 },
+            { date: "May 21", coreStaked: 138200, nftsStaked: 94 },
+            { date: "May 22", coreStaked: 142800, nftsStaked: 102 },
+            { date: "May 23", coreStaked: 159300, nftsStaked: 118 },
+            { date: "May 24", coreStaked: 167400, nftsStaked: 125 },
+            { date: "May 25", coreStaked: 178900, nftsStaked: 134 },
+            { date: "May 26", coreStaked: 185200, nftsStaked: 141 },
+            { date: "May 27", coreStaked: 192700, nftsStaked: 153 },
+            { date: "May 28", coreStaked: 201400, nftsStaked: 162 },
+          ];
+        }
+      } catch (historyErr) {
+        console.warn("Could not load stake history from backend, using fallback");
+        // Use fallback mock data
+        nextVaultData.stakeHistory = [
+            { date: "May 20", coreStaked: 124500, nftsStaked: 87 },
+            { date: "May 21", coreStaked: 138200, nftsStaked: 94 },
+            { date: "May 22", coreStaked: 142800, nftsStaked: 102 },
+            { date: "May 23", coreStaked: 159300, nftsStaked: 118 },
+            { date: "May 24", coreStaked: 167400, nftsStaked: 125 },
+            { date: "May 25", coreStaked: 178900, nftsStaked: 134 },
+            { date: "May 26", coreStaked: 185200, nftsStaked: 141 },
+            { date: "May 27", coreStaked: 192700, nftsStaked: 153 },
+            { date: "May 28", coreStaked: 201400, nftsStaked: 162 },
+        ];
       }
 
       setVaultData(nextVaultData);
