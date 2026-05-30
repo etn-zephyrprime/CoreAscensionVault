@@ -1,1 +1,41 @@
-{"lastProcessedBlock":14014582,"history":[{"date":"May 21","coreStaked":100,"nftsStaked":0},{"date":"May 22","coreStaked":10,"nftsStaked":1},{"date":"May 25","coreStaked":0,"nftsStaked":2},{"date":"May 26","coreStaked":1513.7929,"nftsStaked":3},{"date":"May 27","coreStaked":487.3958,"nftsStaked":4},{"date":"May 28","coreStaked":1810.188,"nftsStaked":4},{"date":"May 30","coreStaked":3821,"nftsStaked":4}],"lastUpdated":"2026-05-30T22:31:53.587Z"}
+{
+  "lastProcessedBlock": 14014677,
+  "history": [
+    {
+      "date": "May 21",
+      "coreStaked": 100,
+      "nftsStaked": 0
+    },
+    {
+      "date": "May 22",
+      "coreStaked": 10,
+      "nftsStaked": 1
+    },
+    {
+      "date": "May 25",
+      "coreStaked": 0,
+      "nftsStaked": 3
+    },
+    {
+      "date": "May 26",
+      "coreStaked": 1513.7929,
+      "nftsStaked": 6
+    },
+    {
+      "date": "May 27",
+      "coreStaked": 487.3958,
+      "nftsStaked": 10
+    },
+    {
+      "date": "May 28",
+      "coreStaked": 1810.188,
+      "nftsStaked": 14
+    },
+    {
+      "date": "May 30",
+      "coreStaked": 3821,
+      "nftsStaked": 4
+    }
+  ],
+  "lastUpdated": "2026-05-30T22:45:00.000Z"
+}

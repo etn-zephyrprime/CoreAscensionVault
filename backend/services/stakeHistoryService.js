@@ -134,52 +134,33 @@ export async function fetchStakeHistory(stakingContract, provider) {
     let allNewNftEvents = [];
     let allNewNftWithdrawEvents = [];
 
-    // Very conservative chunking for this RPC
-    let chunkSize = 300;   // Start small
+    const chunkSize = 800;
 
-    let from = lastProcessedBlock + 1;
-
-    while (from <= currentBlock) {
+    for (let from = lastProcessedBlock + 1; from <= currentBlock; from += chunkSize) {
       const to = Math.min(from + chunkSize - 1, currentBlock);
 
       console.log(`[StakeHistory] Fetching chunk ${from} → ${to}`);
 
-      let success = false;
-      let retries = 3;
+      try {
+        const [coreChunk, nftChunk, withdrawChunk] = await Promise.all([
+          stakingContract.queryFilter(coreFilter, from, to),
+          stakingContract.queryFilter(nftFilter, from, to),
+          nftWithdrawFilter ? stakingContract.queryFilter(nftWithdrawFilter, from, to) : Promise.resolve([])
+        ]);
 
-      while (!success && retries > 0) {
-        try {
-          const [coreChunk, nftChunk, withdrawChunk] = await Promise.all([
-            stakingContract.queryFilter(coreFilter, from, to),
-            stakingContract.queryFilter(nftFilter, from, to),
-            nftWithdrawFilter ? stakingContract.queryFilter(nftWithdrawFilter, from, to) : Promise.resolve([])
-          ]);
-
-          allNewCoreEvents.push(...coreChunk);
-          allNewNftEvents.push(...nftChunk);
-          if (withdrawChunk) allNewNftWithdrawEvents.push(...withdrawChunk);
-
-          success = true;
-        } catch (err) {
-          retries--;
-          console.warn(`Chunk ${from}-${to} failed (retry ${3-retries}/3)`);
-          
-          if (retries > 0) {
-            chunkSize = Math.max(100, Math.floor(chunkSize * 0.6)); // Reduce chunk size
-            await new Promise(r => setTimeout(r, 1200)); // Longer backoff
-          }
-        }
+        allNewCoreEvents.push(...coreChunk);
+        allNewNftEvents.push(...nftChunk);
+        if (withdrawChunk) allNewNftWithdrawEvents.push(...withdrawChunk);
+      } catch (err) {
+        console.warn(`Chunk ${from}-${to} failed`);
       }
 
-      from = to + 1;
-      await new Promise(r => setTimeout(r, 150)); // Gentle delay
+      await new Promise(r => setTimeout(r, 120));
     }
-
-    console.log(`[StakeHistory] Total collected: ${allNewCoreEvents.length} CORE | ${allNewNftEvents.length} NFT events`);
 
     const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, allNewNftWithdrawEvents, provider);
 
-    // Merge logic (same as before)
+    // Merge
     let updatedHistory = [...(state.history || [])];
 
     Object.values(newDailyData).forEach(newDay => {
@@ -194,17 +175,25 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
-    // Make NFT count cumulative
-    let runningNft = 0;
+    // === MAKE NFT COUNT FULLY CUMULATIVE ===
+    let runningNftTotal = 0;
     for (let entry of updatedHistory) {
-      runningNft += (entry.nftsStaked || 0);
-      entry.nftsStaked = Math.max(0, runningNft);
+      runningNftTotal += (entry.nftsStaked || 0);
+      entry.nftsStaked = Math.max(0, runningNftTotal);
     }
 
-    // Ensure today exists
+    // === ALWAYS UPDATE TODAY WITH REAL CURRENT TOTALS ===
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (!updatedHistory.some(h => h.date === today)) {
-      updatedHistory.push({ date: today, coreStaked: 0, nftsStaked: runningNft });
+    const todayIndex = updatedHistory.findIndex(h => h.date === today);
+
+    if (todayIndex !== -1) {
+      updatedHistory[todayIndex].nftsStaked = runningNftTotal; // Ensure latest count
+    } else {
+      updatedHistory.push({
+        date: today,
+        coreStaked: 0,
+        nftsStaked: runningNftTotal,
+      });
     }
 
     const newState = {
@@ -215,11 +204,11 @@ export async function fetchStakeHistory(stakingContract, provider) {
     await saveHistory(newState);
     await saveLastBlockLocked(HISTORY_KEY, currentBlock);
 
-    console.log(`[StakeHistory] ✅ Updated | ${updatedHistory.length} days`);
+    console.log(`[StakeHistory] ✅ Updated | Today NFTs: ${runningNftTotal}`);
     return updatedHistory;
 
   } catch (err) {
-    console.error("[StakeHistory] Critical Error:", err);
+    console.error("[StakeHistory] Error:", err);
     throw err;
   }
 }
