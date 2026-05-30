@@ -121,7 +121,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     console.log(`[StakeHistory] Last processed: ${lastProcessedBlock} | Current: ${currentBlock}`);
 
-    if (lastProcessedBlock >= currentBlock - 50) {
+    if (lastProcessedBlock >= currentBlock - 20) {
       console.log("[StakeHistory] ✅ Up to date");
       return state.history || [];
     }
@@ -134,12 +134,8 @@ export async function fetchStakeHistory(stakingContract, provider) {
     let allNewNftEvents = [];
     let allNewNftWithdrawEvents = [];
 
-    // Adaptive chunk size
-    const getChunkSize = (from) => {
-      if (from < currentBlock - 30000) return 600;      // Old blocks - very safe
-      if (from < currentBlock - 10000) return 1200;     // Medium
-      return 3000;                                      // Recent blocks - faster
-    };
+// Very conservative chunking for this RPC
+    let chunkSize = 300;   // Start small
 
     let from = lastProcessedBlock + 1;
 
@@ -149,7 +145,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
       console.log(`[StakeHistory] Fetching chunk ${from} → ${to} (size: ${chunkSize})`);
 
-      let retries = 2;
+      let retries = 3;
       let success = false;
 
       while (retries > 0 && !success) {
