@@ -56,12 +56,12 @@ async function saveHistory(data) {
   }
 }
 
-// Process events into daily aggregates
-async function processEvents(coreEvents, nftEvents, provider) {
+// Process events into daily aggregates → CUMULATIVE TOTALS
+async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider) {
   const dailyData = {};
   const blockCache = new Map();
 
-  // CORE Staking
+  // CORE Staked Events (cumulative)
   for (const event of coreEvents) {
     try {
       let block = blockCache.get(event.blockNumber);
@@ -77,7 +77,7 @@ async function processEvents(coreEvents, nftEvents, provider) {
     } catch (e) {}
   }
 
-  // NFT Staking - Count new stakes per day
+  // NFT Staked Events
   for (const event of nftEvents) {
     try {
       let block = blockCache.get(event.blockNumber);
@@ -89,7 +89,23 @@ async function processEvents(coreEvents, nftEvents, provider) {
       const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
       if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-      dailyData[dayKey].nftsStaked += 1;        // This counts NEW stakes
+      dailyData[dayKey].nftsStaked += 1;
+    } catch (e) {}
+  }
+
+  // NFT Withdrawn Events (subtract)
+  for (const event of nftWithdrawEvents) {
+    try {
+      let block = blockCache.get(event.blockNumber);
+      if (!block) {
+        block = await provider.getBlock(event.blockNumber, false);
+        blockCache.set(event.blockNumber, block);
+      }
+      const date = new Date(block.timestamp * 1000);
+      const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
+      dailyData[dayKey].nftsStaked -= 1;
     } catch (e) {}
   }
 
@@ -112,34 +128,40 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     const coreFilter = stakingContract.filters.CoreStaked();
     const nftFilter = stakingContract.filters.NFTStaked();
+    const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn();   // ← Add this
 
     let allNewCoreEvents = [];
     let allNewNftEvents = [];
+    let allNewNftWithdrawEvents = [];
 
-    // Fetch in safe chunks
     for (let from = lastProcessedBlock + 1; from <= currentBlock; from += CHUNK_SIZE) {
       const to = Math.min(from + CHUNK_SIZE - 1, currentBlock);
 
-      console.log(`[StakeHistory] Fetching chunk ${from} → ${to}`);
-
       try {
-        const [coreChunk, nftChunk] = await Promise.all([
+        const [coreChunk, nftChunk, withdrawChunk] = await Promise.all([
           stakingContract.queryFilter(coreFilter, from, to),
-          stakingContract.queryFilter(nftFilter, from, to)
+          stakingContract.queryFilter(nftFilter, from, to),
+          stakingContract.queryFilter(nftWithdrawFilter, from, to)
         ]);
 
         allNewCoreEvents.push(...coreChunk);
         allNewNftEvents.push(...nftChunk);
+        allNewNftWithdrawEvents.push(...withdrawChunk);
 
         if (to < currentBlock) await new Promise(r => setTimeout(r, 100));
       } catch (chunkErr) {
-        console.warn(`Chunk ${from}-${to} failed:`, chunkErr.message);
+        console.warn(`Chunk ${from}-${to} failed`);
       }
     }
 
     console.log(`[StakeHistory] New events: ${allNewCoreEvents.length} CORE | ${allNewNftEvents.length} NFT`);
 
-    const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, provider);
+    const newDailyData = await processEvents(
+      allNewCoreEvents, 
+      allNewNftEvents, 
+      allNewNftWithdrawEvents, 
+      provider
+    );
 
     // Merge new data
     let updatedHistory = [...(state.history || [])];
