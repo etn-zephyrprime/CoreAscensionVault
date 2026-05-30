@@ -128,12 +128,13 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     const coreFilter = stakingContract.filters.CoreStaked();
     const nftFilter = stakingContract.filters.NFTStaked();
-    const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn();   // ← Add this
+    const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn();
 
     let allNewCoreEvents = [];
     let allNewNftEvents = [];
     let allNewNftWithdrawEvents = [];
 
+    // Fetch in safe chunks
     for (let from = lastProcessedBlock + 1; from <= currentBlock; from += CHUNK_SIZE) {
       const to = Math.min(from + CHUNK_SIZE - 1, currentBlock);
 
@@ -154,16 +155,9 @@ export async function fetchStakeHistory(stakingContract, provider) {
       }
     }
 
-    console.log(`[StakeHistory] New events: ${allNewCoreEvents.length} CORE | ${allNewNftEvents.length} NFT`);
+    const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, allNewNftWithdrawEvents, provider);
 
-    const newDailyData = await processEvents(
-      allNewCoreEvents, 
-      allNewNftEvents, 
-      allNewNftWithdrawEvents, 
-      provider
-    );
-
-    // Merge new data
+    // Merge with existing history
     let updatedHistory = [...(state.history || [])];
 
     Object.values(newDailyData).forEach(newDay => {
@@ -178,18 +172,25 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
-    // === Always ensure today has current totals ===
-    // Note: Since we don't have real-time totals here, we'll leave today's values as-is for now
-    // The frontend will enrich them with current totals
+    // === MAKE NFT COUNT CUMULATIVE (carry forward) ===
+    let runningNftTotal = 0;
+    for (let i = 0; i < updatedHistory.length; i++) {
+      runningNftTotal += (updatedHistory[i].nftsStaked || 0);
+      updatedHistory[i].nftsStaked = Math.max(0, runningNftTotal); // prevent negative
+    }
 
+    // Always ensure today has current totals (if we can get them)
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const todayIndex = updatedHistory.findIndex(h => h.date === today);
 
-    if (todayIndex === -1) {
+    if (todayIndex !== -1) {
+      // Today will be enriched properly by frontend
+      updatedHistory[todayIndex].coreStaked = updatedHistory[todayIndex].coreStaked || 0;
+    } else {
       updatedHistory.push({
         date: today,
-        coreStaked: 0,        // Will be enriched by frontend
-        nftsStaked: 0,
+        coreStaked: 0,
+        nftsStaked: runningNftTotal,
       });
     }
 
@@ -202,7 +203,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
     await saveHistory(newState);
     await saveLastBlockLocked(HISTORY_KEY, currentBlock);
 
-    console.log(`[StakeHistory] ✅ Updated successfully | ${updatedHistory.length} days`);
+    console.log(`[StakeHistory] ✅ Updated | ${updatedHistory.length} days`);
     return updatedHistory;
 
   } catch (err) {
