@@ -12,11 +12,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Routes
 app.use("/api/vault", vaultRoutes);
 
 // Health check
 app.get("/", (req, res) => {
-  res.json({ status: "ok", service: "Core Ascension Vault Backend" });
+  res.json({ 
+    status: "ok", 
+    service: "Core Ascension Vault Backend",
+    message: "Server is running"
+  });
 });
 
 // ====================== POLLING SETUP ======================
