@@ -1,0 +1,23 @@
+{
+    "lastProcessedBlock":14012972,
+    "history":[
+        {"date":"May 21",
+        "coreStaked":100,
+        "nftsStaked":1},
+        {"date":"May 22",
+        "coreStaked":10,
+        "nftsStaked":2},
+        {"date":"May 25",
+        "coreStaked":0,
+        "nftsStaked":1},
+        {"date":"May 26",
+        "coreStaked":1513.7929,
+        "nftsStaked":2},
+        {"date":"May 27",
+        "coreStaked":487.3958,
+        "nftsStaked":1},
+        {"date":"May 28",
+        "coreStaked":1810.188,
+        "nftsStaked":0}
+    ],
+    "lastUpdated":"2026-05-30T20:19:02.667Z"}
