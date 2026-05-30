@@ -14,27 +14,27 @@
     {
       "date": "May 25",
       "coreStaked": 0,
-      "nftsStaked": 3
+      "nftsStaked": 2
     },
     {
       "date": "May 26",
       "coreStaked": 1513.7929,
-      "nftsStaked": 6
+      "nftsStaked": 0
     },
     {
       "date": "May 27",
       "coreStaked": 487.3958,
-      "nftsStaked": 10
+      "nftsStaked": 1
     },
     {
       "date": "May 28",
       "coreStaked": 1810.188,
-      "nftsStaked": 14
+      "nftsStaked": 0
     },
     {
       "date": "May 30",
       "coreStaked": 3821,
-      "nftsStaked": 4
+      "nftsStaked": 0
     }
   ],
   "lastUpdated": "2026-05-30T22:45:00.000Z"
