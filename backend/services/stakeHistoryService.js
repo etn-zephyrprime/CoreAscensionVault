@@ -156,24 +156,21 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
-    // Always ensure today is included with current totals
+    // === Always ensure today has current totals ===
+    // Note: Since we don't have real-time totals here, we'll leave today's values as-is for now
+    // The frontend will enrich them with current totals
+
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const todayIndex = updatedHistory.findIndex(h => h.date === today);
 
-    if (todayIndex !== -1) {
-      updatedHistory[todayIndex].coreStaked = Math.floor(totalCoreStaked);
-      updatedHistory[todayIndex].nftsStaked = totalNftsStaked;
-    } else {
+    if (todayIndex === -1) {
       updatedHistory.push({
         date: today,
-        coreStaked: Math.floor(totalCoreStaked),
-        nftsStaked: totalNftsStaked,
+        coreStaked: 0,        // Will be enriched by frontend
+        nftsStaked: 0,
       });
     }
 
-    // Optional: Fill only the last 1-2 days if missing (keeps chart smooth without over-filling)
-    // (You can remove this if you prefer completely honest gaps)
-        
     // Save
     const newState = {
       lastProcessedBlock: currentBlock,
