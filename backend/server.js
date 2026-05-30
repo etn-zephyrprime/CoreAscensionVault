@@ -4,7 +4,7 @@ import cors from "cors";
 import { ethers } from "ethers";
 import vaultRoutes from "./routes/vault.js";
 import { fetchStakeHistory } from "./services/stakeHistoryService.js";
-import stakingABI from "./abis/stakingABI.json" with { type: "json" };
+import stakingABI from "../src/abis/stakingABI.json" with { type: "json" };
 import { RPC_URL } from "./config.js";            // Your RPC
 
 const app = express();
