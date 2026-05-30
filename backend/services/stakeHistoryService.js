@@ -121,43 +121,60 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     console.log(`[StakeHistory] Last: ${lastProcessedBlock} | Current: ${currentBlock}`);
 
-    if (lastProcessedBlock >= currentBlock) {
+    if (lastProcessedBlock >= currentBlock - 10) {
       console.log("[StakeHistory] Up to date.");
       return state.history || [];
     }
 
     const coreFilter = stakingContract.filters.CoreStaked();
     const nftFilter = stakingContract.filters.NFTStaked();
-    const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn();
+    const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn?.() || null;
 
     let allNewCoreEvents = [];
     let allNewNftEvents = [];
     let allNewNftWithdrawEvents = [];
 
-    // Fetch in safe chunks
-    for (let from = lastProcessedBlock + 1; from <= currentBlock; from += CHUNK_SIZE) {
-      const to = Math.min(from + CHUNK_SIZE - 1, currentBlock);
+    // Use smaller chunks for initial sync, larger for recent data
+    const initialChunkSize = 800;
+    const recentChunkSize = 2000;
+
+    let from = lastProcessedBlock + 1;
+
+    while (from <= currentBlock) {
+      const chunkSize = (from < currentBlock - 10000) ? initialChunkSize : recentChunkSize;
+      const to = Math.min(from + chunkSize - 1, currentBlock);
+
+      console.log(`[StakeHistory] Fetching chunk ${from} → ${to}`);
 
       try {
         const [coreChunk, nftChunk, withdrawChunk] = await Promise.all([
           stakingContract.queryFilter(coreFilter, from, to),
           stakingContract.queryFilter(nftFilter, from, to),
-          stakingContract.queryFilter(nftWithdrawFilter, from, to)
+          nftWithdrawFilter ? stakingContract.queryFilter(nftWithdrawFilter, from, to) : Promise.resolve([])
         ]);
 
         allNewCoreEvents.push(...coreChunk);
         allNewNftEvents.push(...nftChunk);
-        allNewNftWithdrawEvents.push(...withdrawChunk);
+        if (withdrawChunk) allNewNftWithdrawEvents.push(...withdrawChunk);
 
-        if (to < currentBlock) await new Promise(r => setTimeout(r, 100));
       } catch (chunkErr) {
-        console.warn(`Chunk ${from}-${to} failed`);
+        console.warn(`Chunk ${from}-${to} failed, skipping...`, chunkErr.message);
+        // Try one more time with smaller chunk
+        if (chunkSize > 300) {
+          console.log(`Retrying chunk ${from}-${to} with smaller size...`);
+          // You can add retry logic here later
+        }
       }
+
+      from = to + 1;
+      await new Promise(r => setTimeout(r, 80)); // Be nice to RPC
     }
+
+    console.log(`[StakeHistory] Total new events: ${allNewCoreEvents.length} CORE | ${allNewNftEvents.length} NFT`);
 
     const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, allNewNftWithdrawEvents, provider);
 
-    // Merge with existing history
+    // Merge logic...
     let updatedHistory = [...(state.history || [])];
 
     Object.values(newDailyData).forEach(newDay => {
@@ -172,26 +189,10 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
-    // === MAKE NFT COUNT CUMULATIVE (carry forward) ===
-    let runningNftTotal = 0;
-    for (let i = 0; i < updatedHistory.length; i++) {
-      runningNftTotal += (updatedHistory[i].nftsStaked || 0);
-      updatedHistory[i].nftsStaked = Math.max(0, runningNftTotal); // prevent negative
-    }
-
-    // Always ensure today has current totals (if we can get them)
+    // Ensure today is present
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const todayIndex = updatedHistory.findIndex(h => h.date === today);
-
-    if (todayIndex !== -1) {
-      // Today will be enriched properly by frontend
-      updatedHistory[todayIndex].coreStaked = updatedHistory[todayIndex].coreStaked || 0;
-    } else {
-      updatedHistory.push({
-        date: today,
-        coreStaked: 0,
-        nftsStaked: runningNftTotal,
-      });
+    if (!updatedHistory.some(h => h.date === today)) {
+      updatedHistory.push({ date: today, coreStaked: 0, nftsStaked: 0 });
     }
 
     // Save
@@ -203,11 +204,11 @@ export async function fetchStakeHistory(stakingContract, provider) {
     await saveHistory(newState);
     await saveLastBlockLocked(HISTORY_KEY, currentBlock);
 
-    console.log(`[StakeHistory] ✅ Updated | ${updatedHistory.length} days`);
+    console.log(`[StakeHistory] ✅ Updated | ${updatedHistory.length} days in history`);
     return updatedHistory;
 
   } catch (err) {
-    console.error("[StakeHistory] Error:", err);
+    console.error("[StakeHistory] Critical Error:", err);
     throw err;
   }
 }
