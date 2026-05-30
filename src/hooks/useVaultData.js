@@ -92,36 +92,28 @@ export function useVaultData(provider, account) {
       }
 
       // === Load Stake History ===
-      let history = await fetchStakeHistory(
-        staking,
-        provider
-      );
+      let history = await fetchStakeHistory(staking, provider);
 
-      // === Enrich latest day with CURRENT real totals ===
+      // === CRITICAL: Enrich with CURRENT real totals ===
       const today = new Date().toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
       });
 
       const enrichedHistory = history.map(entry => {
-        if (entry.date === today) {
-          return {
-            ...entry,
-            coreStaked: Math.floor(nextVaultData.totalCoreStaked),
-            nftsStaked: nextVaultData.nftCount || 0,           // ← This fixes today
-            rewardsRemaining: nextVaultData.rewardsRemaining,
-            currentApr: nextVaultData.currentApr,
-          };
-        }
+        const isToday = entry.date === today;
+
         return {
           ...entry,
+          coreStaked: isToday ? Math.floor(nextVaultData.totalCoreStaked) : (entry.coreStaked || 0),
+          nftsStaked: isToday ? (nextVaultData.nftCount || 0) : (entry.nftsStaked || 0),
           rewardsRemaining: nextVaultData.rewardsRemaining,
           currentApr: nextVaultData.currentApr,
         };
       });
 
       nextVaultData.stakeHistory = enrichedHistory;
-      
+            
       setVaultData(nextVaultData);
       isInitialLoad.current = false;
     } catch (err) {
