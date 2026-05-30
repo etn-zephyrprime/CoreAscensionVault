@@ -81,7 +81,7 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
     background: "#0a0a0a",
     border: "1px solid #333",
     borderRadius: 14,
-    padding: "16px 12px 20px 12px",
+    padding: "20px 16px 24px 16px",
   }}
 >
   <div
@@ -89,45 +89,49 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
       fontSize: 15,
       color: "#ddd",
       fontWeight: 700,
-      marginBottom: 16,
+      marginBottom: 18,
       textAlign: "center",
     }}
   >
     VAULT METRICS OVER TIME
   </div>
 
-  <ResponsiveContainer width="100%" height={isMobile ? 320 : 400}>
-    <LineChart data={stakeHistory}>
+  <ResponsiveContainer width="100%" height={isMobile ? 340 : 420}>
+    <LineChart data={stakeHistory} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
       <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+
       <XAxis 
         dataKey="date" 
         stroke="#666" 
         fontSize={12}
         tickLine={false}
+        axisLine={{ stroke: "#444" }}
       />
-      
-      {/* Left Y-Axis: CORE & Rewards */}
+
+      {/* Left Axis - CORE & Rewards */}
       <YAxis 
         yAxisId="left" 
         stroke={green} 
         tickFormatter={(v) => `${(v/1000).toFixed(0)}k`}
         fontSize={11}
+        axisLine={{ stroke: "#444" }}
       />
-      
-      {/* Right Y-Axis: NFTs & APY */}
+
+      {/* Right Axis - NFTs & APY */}
       <YAxis 
         yAxisId="right" 
         orientation="right" 
         stroke="#ffcc66"
         fontSize={11}
+        axisLine={{ stroke: "#444" }}
       />
 
       <Tooltip 
         contentStyle={{ 
           backgroundColor: "#111", 
-          border: "1px solid #444", 
-          borderRadius: 10,
-          padding: "10px"
+          border: "1px solid #555", 
+          borderRadius: 12,
+          padding: "12px 16px"
         }}
         formatter={(value, name) => {
           if (name === "Rewards Remaining") return [`${value.toLocaleString()} CORE`, name];
@@ -135,51 +139,56 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
           return [value.toLocaleString(), name];
         }}
       />
-      
+
       <Legend 
         verticalAlign="top" 
-        height={36}
+        height={42}
         iconType="line"
+        iconSize={12}
       />
 
-      {/* Main Lines */}
+      {/* Lines */}
       <Line 
         yAxisId="left" 
         dataKey="coreStaked" 
         stroke={green} 
-        strokeWidth={4} 
-        dot={{ r: 5, fill: green }}
-        name="CORE Staked" 
+        strokeWidth={4.5} 
+        dot={{ r: 5, fill: green, strokeWidth: 2 }}
         activeDot={{ r: 7 }}
+        name="CORE Staked" 
+        connectNulls={true}
       />
-      
+
       <Line 
         yAxisId="left" 
         dataKey="rewardsRemaining" 
         stroke="#ff8a3d" 
         strokeWidth={3} 
-        strokeDasharray="5 3"
+        strokeDasharray="6 3"
         dot={{ r: 4, fill: "#ff8a3d" }}
         name="Rewards Remaining" 
+        connectNulls={true}
       />
 
       <Line 
         yAxisId="right" 
         dataKey="nftsStaked" 
         stroke="#ffcc66" 
-        strokeWidth={3} 
+        strokeWidth={3.5} 
         dot={{ r: 5, fill: "#ffcc66" }}
         name="NFTs Staked" 
+        connectNulls={true}
       />
 
       <Line 
         yAxisId="right" 
         dataKey="currentApr" 
         stroke="#00d4ff" 
-        strokeWidth={2.5} 
-        strokeDasharray="4 2"
+        strokeWidth={2.8} 
+        strokeDasharray="4 3"
         dot={{ r: 4, fill: "#00d4ff" }}
         name="APY %" 
+        connectNulls={true}
       />
     </LineChart>
   </ResponsiveContainer>

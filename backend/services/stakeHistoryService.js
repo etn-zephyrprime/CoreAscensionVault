@@ -56,11 +56,12 @@ async function saveHistory(data) {
   }
 }
 
-// Process events into daily data
+// Process events into daily aggregates
 async function processEvents(coreEvents, nftEvents, provider) {
   const dailyData = {};
   const blockCache = new Map();
 
+  // CORE Staking
   for (const event of coreEvents) {
     try {
       let block = blockCache.get(event.blockNumber);
@@ -76,6 +77,7 @@ async function processEvents(coreEvents, nftEvents, provider) {
     } catch (e) {}
   }
 
+  // NFT Staking - Count new stakes per day
   for (const event of nftEvents) {
     try {
       let block = blockCache.get(event.blockNumber);
@@ -87,7 +89,7 @@ async function processEvents(coreEvents, nftEvents, provider) {
       const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
       if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-      dailyData[dayKey].nftsStaked += 1;
+      dailyData[dayKey].nftsStaked += 1;        // This counts NEW stakes
     } catch (e) {}
   }
 
@@ -139,7 +141,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, provider);
 
-    // Merge
+    // Merge new data
     let updatedHistory = [...(state.history || [])];
 
     Object.values(newDailyData).forEach(newDay => {
@@ -154,6 +156,24 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
+    // Always ensure today is included with current totals
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const todayIndex = updatedHistory.findIndex(h => h.date === today);
+
+    if (todayIndex !== -1) {
+      updatedHistory[todayIndex].coreStaked = Math.floor(totalCoreStaked);
+      updatedHistory[todayIndex].nftsStaked = totalNftsStaked;
+    } else {
+      updatedHistory.push({
+        date: today,
+        coreStaked: Math.floor(totalCoreStaked),
+        nftsStaked: totalNftsStaked,
+      });
+    }
+
+    // Optional: Fill only the last 1-2 days if missing (keeps chart smooth without over-filling)
+    // (You can remove this if you prefer completely honest gaps)
+        
     // Save
     const newState = {
       lastProcessedBlock: currentBlock,
