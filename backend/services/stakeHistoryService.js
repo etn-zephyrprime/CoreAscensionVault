@@ -13,7 +13,7 @@ const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
 
 const CONTRACT_CREATION_BLOCK = 13853455;
 const HISTORY_KEY = "stakeHistoryLastBlock";
-const CHUNK_SIZE = 2500; // Safe for Ankr RPC
+const CHUNK_SIZE = 500; // Safe for Ankr RPC
 
 // Ensure directory exists
 async function ensureDataDir() {
