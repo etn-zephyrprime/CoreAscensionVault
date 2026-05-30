@@ -136,120 +136,128 @@ export function useVaultData(provider, account) {
 
 // ====================== HISTORY FETCHER ======================
 async function fetchStakeHistory(stakingContract, provider, totalCoreStaked, totalNftsStaked = 0) {
-  const now = Date.now();
-
-  // Return cached data if still fresh
-  if (historyCache.data && (now - historyCache.timestamp) < historyCache.CACHE_DURATION) {
-    console.log("🟢 Using cached stake history");
-    return historyCache.data;
-  }
-
   try {
-    console.log("🔄 Fetching fresh stake history...");
+    // 1. Get latest history from backend (persistent JSON file)
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
+    
+    if (!res.ok) throw new Error("Failed to fetch history");
+    
+    let cache = await res.json();
 
     const currentBlock = await provider.getBlockNumber();
-    const CONTRACT_CREATION_BLOCK = 13853455;
-    const CHUNK_SIZE = 60;
-    const MAX_HISTORY_BLOCKS = 12000;
+    const fromBlock = Math.max((cache.lastProcessedBlock || 13853455) + 1, 13853455);
 
-    let fromBlock = Math.max(CONTRACT_CREATION_BLOCK, currentBlock - MAX_HISTORY_BLOCKS);
+    console.log(`[Frontend] Last backend block: ${cache.lastProcessedBlock} | Current: ${currentBlock}`);
+
+    // If we're up to date, just return the cached history
+    if (fromBlock > currentBlock) {
+      console.log("✅ Using latest history from backend cache");
+      return cache.history || [];
+    }
+
+    // 2. Fetch only new events
+    console.log(`🔄 Fetching new events from block ${fromBlock}`);
 
     const coreFilter = stakingContract.filters.CoreStaked();
     const nftFilter = stakingContract.filters.NFTStaked();
 
-    const allCoreEvents = [];
-    const allNftEvents = [];
+    const newCoreEvents = await stakingContract.queryFilter(coreFilter, fromBlock, currentBlock);
+    const newNftEvents = await stakingContract.queryFilter(nftFilter, fromBlock, currentBlock);
 
-    for (let start = fromBlock; start <= currentBlock; start += CHUNK_SIZE) {
-      const end = Math.min(start + CHUNK_SIZE - 1, currentBlock);
-      try {
-        const [coreChunk, nftChunk] = await Promise.all([
-          stakingContract.queryFilter(coreFilter, start, end),
-          stakingContract.queryFilter(nftFilter, start, end),
-        ]);
+    console.log(`New events: ${newCoreEvents.length} CORE | ${newNftEvents.length} NFT`);
 
-        allCoreEvents.push(...coreChunk);
-        allNftEvents.push(...nftChunk);
+    // 3. Process new events
+    const newDailyData = await processEvents(newCoreEvents, newNftEvents, provider);
 
-        if (end < currentBlock) await new Promise((r) => setTimeout(r, 60));
-      } catch (e) {
-        console.warn(`Chunk ${start}-${end} failed`);
+    // 4. Merge with existing history
+    let updatedHistory = [...(cache.history || [])];
+
+    Object.values(newDailyData).forEach(newDay => {
+      const existingIndex = updatedHistory.findIndex(h => h.date === newDay.date);
+      if (existingIndex !== -1) {
+        updatedHistory[existingIndex].coreStaked = (updatedHistory[existingIndex].coreStaked || 0) + newDay.coreStaked;
+        updatedHistory[existingIndex].nftsStaked = (updatedHistory[existingIndex].nftsStaked || 0) + newDay.nftsStaked;
+      } else {
+        updatedHistory.push(newDay);
       }
-    }
-
-    const dailyData = {};
-    const blockCache = new Map();
-
-    // Process CORE events
-    for (const event of allCoreEvents) {
-      try {
-        let block = blockCache.get(event.blockNumber);
-        if (!block) {
-          block = await provider.getBlock(event.blockNumber, false);
-          blockCache.set(event.blockNumber, block);
-        }
-        const dayKey = new Date(block.timestamp * 1000).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-
-        if (!dailyData[dayKey]) {
-          dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-        }
-        dailyData[dayKey].coreStaked += Number(ethers.formatEther(event.args.amount || 0));
-      } catch {}
-    }
-
-    // Process NFT events
-    for (const event of allNftEvents) {
-      try {
-        let block = blockCache.get(event.blockNumber);
-        if (!block) {
-          block = await provider.getBlock(event.blockNumber, false);
-          blockCache.set(event.blockNumber, block);
-        }
-        const dayKey = new Date(block.timestamp * 1000).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-
-        if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-        dailyData[dayKey].nftsStaked += 1;
-      } catch {}
-    }
-
-    let history = Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
-
-    // Always add today's current totals
-    const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    history = history.filter((h) => h.date !== today);
-    history.push({
-      date: today,
-      coreStaked: Math.floor(totalCoreStaked),
-      nftsStaked: totalNftsStaked,
     });
 
-    // Cache the result
-    historyCache.data = history;
-    historyCache.timestamp = now;
+    updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
-    console.log(`✅ History loaded: ${history.length} days`);
-    return history;
+    // 5. Add/Update today's entry with current totals
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const todayIndex = updatedHistory.findIndex(h => h.date === today);
+
+    if (todayIndex !== -1) {
+      updatedHistory[todayIndex].coreStaked = Math.floor(totalCoreStaked);
+      updatedHistory[todayIndex].nftsStaked = totalNftsStaked;
+    } else {
+      updatedHistory.push({
+        date: today,
+        coreStaked: Math.floor(totalCoreStaked),
+        nftsStaked: totalNftsStaked,
+      });
+    }
+
+    // 6. Send update to backend
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lastProcessedBlock: currentBlock,
+          history: updatedHistory
+        })
+      });
+      console.log("✅ History updated on backend");
+    } catch (updateErr) {
+      console.warn("Could not update backend (server may be using its own poller):", updateErr.message);
+    }
+
+    return updatedHistory;
+
   } catch (err) {
-    console.error("Failed to fetch history:", err);
+    console.error("Backend history fetch failed:", err);
     return createFallbackHistory(totalCoreStaked, totalNftsStaked);
   }
 }
 
-function createFallbackHistory(totalCore, totalNfts) {
-  const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+// Helper function to process events
+async function processEvents(coreEvents, nftEvents, provider) {
+  const dailyData = {};
+  const blockCache = new Map();
 
-  return [
-    { date: yesterday, coreStaked: Math.floor(totalCore * 0.68), nftsStaked: Math.floor(totalNfts * 0.75) },
-    { date: today, coreStaked: Math.floor(totalCore), nftsStaked: totalNfts || 0 },
-  ];
+  for (const event of coreEvents) {
+    try {
+      let block = blockCache.get(event.blockNumber);
+      if (!block) {
+        block = await provider.getBlock(event.blockNumber, false);
+        blockCache.set(event.blockNumber, block);
+      }
+      const dayKey = new Date(block.timestamp * 1000).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
+      dailyData[dayKey].coreStaked += Number(ethers.formatEther(event.args.amount || 0));
+    } catch (e) {}
+  }
+
+  for (const event of nftEvents) {
+    try {
+      let block = blockCache.get(event.blockNumber);
+      if (!block) {
+        block = await provider.getBlock(event.blockNumber, false);
+        blockCache.set(event.blockNumber, block);
+      }
+      const dayKey = new Date(block.timestamp * 1000).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
+      dailyData[dayKey].nftsStaked += 1;
+    } catch (e) {}
+  }
+
+  return dailyData;
 }
