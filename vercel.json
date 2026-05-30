@@ -1,8 +1,6 @@
 {
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://coreascensionvault.onrender.com/:path*"
-    }
+    { "source": "/api/vault/:path*", "destination": "https://coreascensionvault.onrender.com/api/vault/:path*" },
+    { "source": "/api/game/:path*", "destination": "https://coreclashgame.onrender.com/:path*" }
   ]
 }
