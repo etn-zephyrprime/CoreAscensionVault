@@ -13,11 +13,50 @@ const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
 
 const CONTRACT_CREATION_BLOCK = 13853455;
 const HISTORY_KEY = "stakeHistoryLastBlock";
-const CHUNK_SIZE = 2500; // Safe size for Ankr RPC
+const CHUNK_SIZE = 2500; // Safe for Ankr RPC
 
-// ... (keep your ensureDataDir, loadHistory, saveHistory functions) ...
+// Ensure directory exists
+async function ensureDataDir() {
+  const dir = path.dirname(HISTORY_FILE);
+  try {
+    await fs.mkdir(dir, { recursive: true });
+  } catch (e) {}
+}
 
-// Process events (same as before)
+// Load history from file
+async function loadHistory() {
+  try {
+    const raw = await fs.readFile(HISTORY_FILE, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      return {
+        lastProcessedBlock: CONTRACT_CREATION_BLOCK,
+        history: [],
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    console.error("Failed to load history file:", err);
+    return { lastProcessedBlock: CONTRACT_CREATION_BLOCK, history: [] };
+  }
+}
+
+// Save history to file
+async function saveHistory(data) {
+  try {
+    await ensureDataDir();
+    const payload = {
+      ...data,
+      lastUpdated: new Date().toISOString()
+    };
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(payload, null, 2));
+    console.log(`[StakeHistory] Saved ${data.history?.length || 0} days`);
+  } catch (err) {
+    console.error("[StakeHistory] Save failed:", err);
+  }
+}
+
+// Process events into daily data
 async function processEvents(coreEvents, nftEvents, provider) {
   const dailyData = {};
   const blockCache = new Map();
@@ -65,7 +104,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
     console.log(`[StakeHistory] Last: ${lastProcessedBlock} | Current: ${currentBlock}`);
 
     if (lastProcessedBlock >= currentBlock) {
-      console.log("[StakeHistory] Already up to date");
+      console.log("[StakeHistory] Up to date.");
       return state.history || [];
     }
 
@@ -75,7 +114,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
     let allNewCoreEvents = [];
     let allNewNftEvents = [];
 
-    // Process in small chunks
+    // Fetch in safe chunks
     for (let from = lastProcessedBlock + 1; from <= currentBlock; from += CHUNK_SIZE) {
       const to = Math.min(from + CHUNK_SIZE - 1, currentBlock);
 
@@ -90,25 +129,24 @@ export async function fetchStakeHistory(stakingContract, provider) {
         allNewCoreEvents.push(...coreChunk);
         allNewNftEvents.push(...nftChunk);
 
-        // Small delay to be nice to RPC
         if (to < currentBlock) await new Promise(r => setTimeout(r, 100));
       } catch (chunkErr) {
         console.warn(`Chunk ${from}-${to} failed:`, chunkErr.message);
       }
     }
 
-    console.log(`[StakeHistory] Total new events: ${allNewCoreEvents.length} CORE | ${allNewNftEvents.length} NFT`);
+    console.log(`[StakeHistory] New events: ${allNewCoreEvents.length} CORE | ${allNewNftEvents.length} NFT`);
 
     const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, provider);
 
-    // Merge with existing
+    // Merge
     let updatedHistory = [...(state.history || [])];
 
     Object.values(newDailyData).forEach(newDay => {
       const existingIndex = updatedHistory.findIndex(h => h.date === newDay.date);
       if (existingIndex !== -1) {
-        updatedHistory[existingIndex].coreStaked = (updatedHistory[existingIndex].coreStaked || 0) + newDay.coreStaked;
-        updatedHistory[existingIndex].nftsStaked = (updatedHistory[existingIndex].nftsStaked || 0) + newDay.nftsStaked;
+        updatedHistory[existingIndex].coreStaked = (updatedHistory[existingIndex].coreStaked || 0) + (newDay.coreStaked || 0);
+        updatedHistory[existingIndex].nftsStaked = (updatedHistory[existingIndex].nftsStaked || 0) + (newDay.nftsStaked || 0);
       } else {
         updatedHistory.push(newDay);
       }
@@ -125,11 +163,15 @@ export async function fetchStakeHistory(stakingContract, provider) {
     await saveHistory(newState);
     await saveLastBlockLocked(HISTORY_KEY, currentBlock);
 
-    console.log(`[StakeHistory] ✅ Updated | ${updatedHistory.length} days tracked`);
+    console.log(`[StakeHistory] ✅ Updated successfully | ${updatedHistory.length} days`);
     return updatedHistory;
 
   } catch (err) {
     console.error("[StakeHistory] Error:", err);
     throw err;
   }
+}
+
+export async function forceUpdateHistory(stakingContract, provider) {
+  return fetchStakeHistory(stakingContract, provider);
 }
