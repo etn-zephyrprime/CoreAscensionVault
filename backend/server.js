@@ -8,10 +8,16 @@ import stakingABI from "../src/abis/stakingABI.json" assert { type: "json" };   
 import { RPC_URL } from "./config.js";            // Your RPC
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
 app.use("/api/vault", vaultRoutes);
+
+// Health check
+app.get("/", (req, res) => {
+  res.json({ status: "ok", service: "Core Ascension Vault Backend" });
+});
 
 // ====================== POLLING SETUP ======================
 let isUpdating = false;
