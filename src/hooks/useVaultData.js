@@ -65,21 +65,32 @@ export function useVaultData(provider, account) {
 
       if (account) {
         const user = await staking.getUser(account);
+        
+        const entryTime = Number(user[3]);
+        const minStakeTime = 60 * 24 * 60 * 60; // 60 days in seconds
+        const now = Math.floor(Date.now() / 1000);
+
+        const penaltySecondsRemaining =
+          entryTime > 0 ? Math.max(0, entryTime + minStakeTime - now) : 0;
+
+        const penaltyDaysRemaining = Math.ceil(penaltySecondsRemaining / 86400);
+
         nextVaultData = {
           ...nextVaultData,
           coreStaked: Number(ethers.formatEther(user[0])),
           nftCount: Number(user[1]),
           rewardWeight: Number(ethers.formatEther(user[2])),
-          entryTime: Number(user[3]),
+          entryTime: entryTime,
           earnedCore: Number(ethers.formatEther(user[4])),
           earlyExit: Boolean(user[5]),
           boost: Number(user[6]) / 10000,
           userShare: totalCoreStaked > 0 
             ? (Number(ethers.formatEther(user[0])) / totalCoreStaked) * 100 
             : 0,
+          penaltyDaysRemaining: penaltyDaysRemaining,   // ← Fixed
         };
       }
-
+      
       // === Load Stake History ===
       let history = await fetchStakeHistory(staking, provider);
 
