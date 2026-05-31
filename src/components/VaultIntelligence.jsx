@@ -127,7 +127,7 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
       textAlign: "center",
     }}
   >
-    VAULT METRICS OVER TIME
+    CORE ASCENSION METRICS OVER TIME
   </div>
 
   {/* Toggle Buttons - Better mobile layout */}
