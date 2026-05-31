@@ -91,29 +91,32 @@ export function useVaultData(provider, account) {
         };
       }
 
-      // === Load Stake History ===
+      // === Load Stake History from Backend ===
       let history = await fetchStakeHistory(staking, provider);
 
-      // === CRITICAL: Enrich with CURRENT real totals ===
-      const today = new Date().toLocaleDateString('en-US', { 
+      // === FORCE ENRICH TODAY'S VALUES ===
+      const todayStr = new Date().toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
       });
 
       const enrichedHistory = history.map(entry => {
-        const isToday = entry.date === today;
+        const isToday = entry.date === todayStr;
 
         return {
           ...entry,
+          // Always use real current totals for today
           coreStaked: isToday ? Math.floor(nextVaultData.totalCoreStaked) : (entry.coreStaked || 0),
           nftsStaked: isToday ? (nextVaultData.nftCount || 0) : (entry.nftsStaked || 0),
+          
+          // Keep other metrics
           rewardsRemaining: nextVaultData.rewardsRemaining,
           currentApr: nextVaultData.currentApr,
         };
       });
 
       nextVaultData.stakeHistory = enrichedHistory;
-            
+
       setVaultData(nextVaultData);
       isInitialLoad.current = false;
     } catch (err) {
@@ -271,20 +274,11 @@ async function processEvents(coreEvents, nftEvents, provider) {
 function createFallbackHistory(totalCore, totalNfts) {
   const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric' 
+    month: 'short', day: 'numeric' 
   });
 
   return [
-    { 
-      date: yesterday, 
-      coreStaked: Math.floor(totalCore * 0.7), 
-      nftsStaked: Math.floor(totalNfts * 0.8) 
-    },
-    { 
-      date: today, 
-      coreStaked: Math.floor(totalCore), 
-      nftsStaked: totalNfts || 0 
-    }
+    { date: yesterday, coreStaked: Math.floor(totalCore * 0.7), nftsStaked: Math.floor(totalNfts * 0.8) },
+    { date: today, coreStaked: Math.floor(totalCore), nftsStaked: totalNfts || 0 }
   ];
 }
