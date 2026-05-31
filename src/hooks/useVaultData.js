@@ -26,7 +26,11 @@ export function useVaultData(provider, account) {
     try {
       if (!provider) return;
 
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
+      const staking = new ethers.Contract(
+        STAKING_ADDRESS,
+        stakingABI,
+        provider
+      );
 
       const [
         totalCoreStakedRaw,
@@ -76,10 +80,10 @@ export function useVaultData(provider, account) {
         };
       }
 
-      // === Load Stake History ===
+      // === Load History ===
       let history = await fetchStakeHistory(staking, provider);
 
-      // === FORCE TODAY'S VALUES ===
+      // === FORCE TODAY'S VALUES (This is the critical part) ===
       const todayStr = new Date().toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
@@ -100,6 +104,7 @@ export function useVaultData(provider, account) {
       nextVaultData.stakeHistory = enrichedHistory;
       
       setVaultData(nextVaultData);
+      console.log("✅ Vault data loaded | Today NFTs:", nextVaultData.nftCount);
     } catch (err) {
       console.error("loadVaultData failed:", err);
     }
@@ -119,29 +124,113 @@ export function useVaultData(provider, account) {
   };
 }
 
-// ====================== HISTORY FETCHER ======================
-async function fetchStakeHistory(stakingContract, provider) {
+// ==================== MAIN FUNCTION ====================
+export async function fetchStakeHistory(stakingContract, provider) {
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
-    if (!res.ok) throw new Error("Failed to fetch history");
-    
-    let cache = await res.json();
+    const currentBlock = await provider.getBlockNumber();
+    let state = await loadHistory();
+    let lastProcessedBlock = state.lastProcessedBlock || CONTRACT_CREATION_BLOCK;
 
-    return cache.history || [];
+    console.log(`[StakeHistory] Last: ${lastProcessedBlock} | Current: ${currentBlock}`);
+
+    if (lastProcessedBlock >= currentBlock - 30) {
+      console.log("[StakeHistory] Up to date.");
+      return state.history || [];
+    }
+
+    const coreFilter = stakingContract.filters.CoreStaked();
+    const nftFilter = stakingContract.filters.NFTStaked();
+    const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn?.() || null;
+
+    let allNewCoreEvents = [];
+    let allNewNftEvents = [];
+    let allNewNftWithdrawEvents = [];
+
+    let chunkSize = 250; // Start very small
+    let from = lastProcessedBlock + 1;
+
+    while (from <= currentBlock) {
+      const to = Math.min(from + chunkSize - 1, currentBlock);
+
+      console.log(`[StakeHistory] Fetching chunk ${from} → ${to} (size: ${chunkSize})`);
+
+      let success = false;
+      let retries = 3;
+
+      while (!success && retries > 0) {
+        try {
+          const [coreChunk, nftChunk, withdrawChunk] = await Promise.all([
+            stakingContract.queryFilter(coreFilter, from, to),
+            stakingContract.queryFilter(nftFilter, from, to),
+            nftWithdrawFilter ? stakingContract.queryFilter(nftWithdrawFilter, from, to) : Promise.resolve([])
+          ]);
+
+          allNewCoreEvents.push(...coreChunk);
+          allNewNftEvents.push(...nftChunk);
+          if (withdrawChunk) allNewNftWithdrawEvents.push(...withdrawChunk);
+
+          success = true;
+        } catch (err) {
+          retries--;
+          console.warn(`Chunk ${from}-${to} failed (retry ${3-retries}/3)`);
+          
+          if (retries > 0) {
+            chunkSize = Math.max(100, Math.floor(chunkSize * 0.5)); // Reduce aggressively
+            await new Promise(r => setTimeout(r, 1500)); // Longer wait
+          }
+        }
+      }
+
+      from = to + 1;
+      await new Promise(r => setTimeout(r, 200)); // Respectful delay
+    }
+
+    console.log(`[StakeHistory] Collected: ${allNewCoreEvents.length} CORE | ${allNewNftEvents.length} NFT events`);
+
+    const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, allNewNftWithdrawEvents, provider);
+
+    // Merge
+    let updatedHistory = [...(state.history || [])];
+
+    Object.values(newDailyData).forEach(newDay => {
+      const idx = updatedHistory.findIndex(h => h.date === newDay.date);
+      if (idx !== -1) {
+        updatedHistory[idx].coreStaked = (updatedHistory[idx].coreStaked || 0) + (newDay.coreStaked || 0);
+        updatedHistory[idx].nftsStaked = (updatedHistory[idx].nftsStaked || 0) + (newDay.nftsStaked || 0);
+      } else {
+        updatedHistory.push(newDay);
+      }
+    });
+
+    updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Cumulative NFT count
+    let runningNft = 0;
+    for (let entry of updatedHistory) {
+      runningNft += (entry.nftsStaked || 0);
+      entry.nftsStaked = Math.max(0, runningNft);
+    }
+
+    // Ensure today
+    const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (!updatedHistory.some(h => h.date === today)) {
+      updatedHistory.push({ date: today, coreStaked: 0, nftsStaked: runningNft });
+    }
+
+    const newState = {
+      lastProcessedBlock: currentBlock,
+      history: updatedHistory,
+    };
+
+    await saveHistory(newState);
+    await saveLastBlockLocked(HISTORY_KEY, currentBlock);
+
+    console.log("Returning history with today:", updatedHistory[updatedHistory.length - 1]);
+    console.log(`[StakeHistory] ✅ Updated | ${updatedHistory.length} days`);
+    return updatedHistory;
+
   } catch (err) {
-    console.error("Backend history fetch failed:", err);
-    return [];
+    console.error("[StakeHistory] Critical Error:", err);
+    throw err;
   }
-}
-
-function createFallbackHistory(totalCore, totalNfts) {
-  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-US', { 
-    month: 'short', day: 'numeric' 
-  });
-
-  return [
-    { date: yesterday, coreStaked: Math.floor(totalCore * 0.7), nftsStaked: Math.floor(totalNfts * 0.8) },
-    { date: today, coreStaked: Math.floor(totalCore), nftsStaked: totalNfts || 0 }
-  ];
 }
