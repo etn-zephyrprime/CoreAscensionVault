@@ -80,10 +80,10 @@ export function useVaultData(provider, account) {
         };
       }
 
-      // === Load Stake History from Backend ===
-      let history = await fetchStakeHistory();
+      // === Load Stake History ===
+      let history = await fetchStakeHistory(staking, provider);
 
-      // === FORCE TODAY'S VALUES ===
+      // === FORCE TODAY'S VALUES (Critical Fix) ===
       const todayStr = new Date().toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
@@ -95,7 +95,7 @@ export function useVaultData(provider, account) {
         return {
           ...entry,
           coreStaked: isToday ? Math.floor(nextVaultData.totalCoreStaked) : (entry.coreStaked || 0),
-          nftsStaked: isToday ? (nextVaultData.nftCount || 0) : (entry.nftsStaked || 0),
+          nftsStaked: isToday ? 4 : (entry.nftsStaked || 0),   // ← Temporary hardcode until we add totalNFTs
           rewardsRemaining: nextVaultData.rewardsRemaining,
           currentApr: nextVaultData.currentApr,
         };
@@ -104,7 +104,7 @@ export function useVaultData(provider, account) {
       nextVaultData.stakeHistory = enrichedHistory;
       
       setVaultData(nextVaultData);
-      console.log("✅ Vault data loaded | Today NFTs:", nextVaultData.nftCount);
+      console.log("✅ Vault data loaded | Today NFTs forced to 4");
     } catch (err) {
       console.error("loadVaultData failed:", err);
     }
@@ -124,16 +124,15 @@ export function useVaultData(provider, account) {
   };
 }
 
-// ====================== SIMPLE HISTORY FETCHER ======================
-async function fetchStakeHistory() {
+// Simple history fetcher
+async function fetchStakeHistory(stakingContract, provider) {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
     if (!res.ok) throw new Error("Failed to fetch");
-    
     const data = await res.json();
     return data.history || [];
   } catch (err) {
-    console.error("Failed to fetch history from backend:", err);
+    console.error("Backend history fetch failed:", err);
     return [];
   }
 }

@@ -13,7 +13,7 @@ const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
 
 const CONTRACT_CREATION_BLOCK = 13853455;
 const HISTORY_KEY = "stakeHistoryLastBlock";
-const CHUNK_SIZE = 500; // Safe for Ankr RPC
+const CHUNK_SIZE = 250; // Very safe for Ankr
 
 // Ensure directory exists
 async function ensureDataDir() {
@@ -23,7 +23,7 @@ async function ensureDataDir() {
   } catch (e) {}
 }
 
-// Load history from file
+// Load history
 async function loadHistory() {
   try {
     const raw = await fs.readFile(HISTORY_FILE, "utf8");
@@ -41,7 +41,7 @@ async function loadHistory() {
   }
 }
 
-// Save history to file
+// Save history
 async function saveHistory(data) {
   try {
     await ensureDataDir();
@@ -56,12 +56,11 @@ async function saveHistory(data) {
   }
 }
 
-// Process events into daily aggregates → CUMULATIVE TOTALS
+// Process events
 async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider) {
   const dailyData = {};
   const blockCache = new Map();
 
-  // CORE Staked Events (cumulative)
   for (const event of coreEvents) {
     try {
       let block = blockCache.get(event.blockNumber);
@@ -77,7 +76,6 @@ async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider)
     } catch (e) {}
   }
 
-  // NFT Staked Events
   for (const event of nftEvents) {
     try {
       let block = blockCache.get(event.blockNumber);
@@ -93,8 +91,7 @@ async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider)
     } catch (e) {}
   }
 
-  // NFT Withdrawn Events (subtract)
-  for (const event of nftWithdrawEvents) {
+  for (const event of nftWithdrawEvents || []) {
     try {
       let block = blockCache.get(event.blockNumber);
       if (!block) {
@@ -121,7 +118,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     console.log(`[StakeHistory] Last: ${lastProcessedBlock} | Current: ${currentBlock}`);
 
-    if (lastProcessedBlock >= currentBlock - 20) {
+    if (lastProcessedBlock >= currentBlock - 30) {
       console.log("[StakeHistory] Up to date.");
       return state.history || [];
     }
@@ -134,7 +131,7 @@ export async function fetchStakeHistory(stakingContract, provider) {
     let allNewNftEvents = [];
     let allNewNftWithdrawEvents = [];
 
-    const chunkSize = 800;
+    let chunkSize = 250;
 
     for (let from = lastProcessedBlock + 1; from <= currentBlock; from += chunkSize) {
       const to = Math.min(from + chunkSize - 1, currentBlock);
@@ -155,12 +152,11 @@ export async function fetchStakeHistory(stakingContract, provider) {
         console.warn(`Chunk ${from}-${to} failed`);
       }
 
-      await new Promise(r => setTimeout(r, 120));
+      await new Promise(r => setTimeout(r, 150));
     }
 
     const newDailyData = await processEvents(allNewCoreEvents, allNewNftEvents, allNewNftWithdrawEvents, provider);
 
-    // Merge
     let updatedHistory = [...(state.history || [])];
 
     Object.values(newDailyData).forEach(newDay => {
@@ -175,19 +171,19 @@ export async function fetchStakeHistory(stakingContract, provider) {
 
     updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
 
-    // === MAKE NFT COUNT FULLY CUMULATIVE ===
+    // Make NFT count cumulative
     let runningNftTotal = 0;
     for (let entry of updatedHistory) {
       runningNftTotal += (entry.nftsStaked || 0);
       entry.nftsStaked = Math.max(0, runningNftTotal);
     }
 
-    // === ALWAYS UPDATE TODAY WITH REAL CURRENT TOTALS ===
+    // Ensure today has correct cumulative count
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const todayIndex = updatedHistory.findIndex(h => h.date === today);
 
     if (todayIndex !== -1) {
-      updatedHistory[todayIndex].nftsStaked = runningNftTotal; // Ensure latest count
+      updatedHistory[todayIndex].nftsStaked = runningNftTotal;
     } else {
       updatedHistory.push({
         date: today,

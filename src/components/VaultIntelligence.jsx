@@ -172,16 +172,6 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
 
       <Line 
         yAxisId="right" 
-        dataKey="nftsStaked" 
-        stroke="#ffcc66" 
-        strokeWidth={3.5} 
-        dot={{ r: 5, fill: "#ffcc66" }}
-        name="NFTs Staked" 
-        connectNulls={true}
-      />
-
-      <Line 
-        yAxisId="right" 
         dataKey="currentApr" 
         stroke="#00d4ff" 
         strokeWidth={2.8} 
