@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { STAKING_ADDRESS } from "../config";
-import stakingABI from "../abis/stakingABI.json" assert { type: "json" }; // or use dynamic import if needed
+import stakingABI from "../abis/stakingABI.json" assert { type: "json" };
 
 const fallbackVault = {
   coreStaked: 0,
@@ -26,13 +26,8 @@ export function useVaultData(provider, account) {
     try {
       if (!provider) return;
 
-      const staking = new ethers.Contract(
-        STAKING_ADDRESS,
-        stakingABI,
-        provider
-      );
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
 
-      // Fetch core data
       const [
         totalCoreStakedRaw,
         rewardsRemainingRaw,
@@ -84,7 +79,7 @@ export function useVaultData(provider, account) {
       // === Load Stake History ===
       let history = await fetchStakeHistory(staking, provider);
 
-      // === ROBUST TODAY ENRICHMENT ===
+      // === FORCE TODAY'S VALUES ===
       const todayStr = new Date().toLocaleDateString('en-US', { 
         month: 'short', 
         day: 'numeric' 
@@ -95,14 +90,8 @@ export function useVaultData(provider, account) {
 
         return {
           ...entry,
-          coreStaked: isToday 
-            ? Math.floor(nextVaultData.totalCoreStaked) 
-            : (entry.coreStaked || 0),
-          
-          nftsStaked: isToday 
-            ? (nextVaultData.nftCount || 0) 
-            : (entry.nftsStaked || 0),
-
+          coreStaked: isToday ? Math.floor(nextVaultData.totalCoreStaked) : (entry.coreStaked || 0),
+          nftsStaked: isToday ? (nextVaultData.nftCount || 0) : (entry.nftsStaked || 0),
           rewardsRemaining: nextVaultData.rewardsRemaining,
           currentApr: nextVaultData.currentApr,
         };
@@ -138,97 +127,21 @@ async function fetchStakeHistory(stakingContract, provider) {
     
     let cache = await res.json();
 
-    const currentBlock = await provider.getBlockNumber();
-    const fromBlock = Math.max((cache.lastProcessedBlock || 13853455) + 1, 13853455);
-
-    console.log(`[Frontend] Last backend block: ${cache.lastProcessedBlock} | Current: ${currentBlock}`);
-
-    if (fromBlock > currentBlock) {
-      console.log("✅ Using latest history from backend cache");
-      return cache.history || [];
-    }
-
-    console.log(`🔄 Fetching new events from block ${fromBlock}`);
-
-    const coreFilter = stakingContract.filters.CoreStaked();
-    const nftFilter = stakingContract.filters.NFTStaked();
-
-    const newCoreEvents = await stakingContract.queryFilter(coreFilter, fromBlock, currentBlock);
-    const newNftEvents = await stakingContract.queryFilter(nftFilter, fromBlock, currentBlock);
-
-    console.log(`New events: ${newCoreEvents.length} CORE | ${newNftEvents.length} NFT`);
-
-    const newDailyData = await processEvents(newCoreEvents, newNftEvents, provider);
-
-    let updatedHistory = [...(cache.history || [])];
-
-    Object.values(newDailyData).forEach(newDay => {
-      const existingIndex = updatedHistory.findIndex(h => h.date === newDay.date);
-      if (existingIndex !== -1) {
-        updatedHistory[existingIndex].coreStaked = (updatedHistory[existingIndex].coreStaked || 0) + (newDay.coreStaked || 0);
-        updatedHistory[existingIndex].nftsStaked = (updatedHistory[existingIndex].nftsStaked || 0) + (newDay.nftsStaked || 0);
-      } else {
-        updatedHistory.push(newDay);
-      }
-    });
-
-    updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Send update to backend
-    try {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history/update`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lastProcessedBlock: currentBlock,
-          history: updatedHistory
-        })
-      });
-    } catch (e) {
-      console.warn("Backend update skipped");
-    }
-
-    return updatedHistory;
-
+    return cache.history || [];
   } catch (err) {
     console.error("Backend history fetch failed:", err);
-    return createFallbackHistory(0, 0);
+    return [];
   }
 }
 
-async function processEvents(coreEvents, nftEvents, provider) {
-  const dailyData = {};
-  const blockCache = new Map();
+function createFallbackHistory(totalCore, totalNfts) {
+  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-US', { 
+    month: 'short', day: 'numeric' 
+  });
 
-  for (const event of coreEvents) {
-    try {
-      let block = blockCache.get(event.blockNumber);
-      if (!block) {
-        block = await provider.getBlock(event.blockNumber, false);
-        blockCache.set(event.blockNumber, block);
-      }
-      const dayKey = new Date(block.timestamp * 1000).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric'
-      });
-      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-      dailyData[dayKey].coreStaked += Number(ethers.formatEther(event.args.amount || 0));
-    } catch (e) {}
-  }
-
-  for (const event of nftEvents) {
-    try {
-      let block = blockCache.get(event.blockNumber);
-      if (!block) {
-        block = await provider.getBlock(event.blockNumber, false);
-        blockCache.set(event.blockNumber, block);
-      }
-      const dayKey = new Date(block.timestamp * 1000).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric'
-      });
-      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-      dailyData[dayKey].nftsStaked += 1;
-    } catch (e) {}
-  }
-
-  return dailyData;
+  return [
+    { date: yesterday, coreStaked: Math.floor(totalCore * 0.7), nftsStaked: Math.floor(totalNfts * 0.8) },
+    { date: today, coreStaked: Math.floor(totalCore), nftsStaked: totalNfts || 0 }
+  ];
 }
