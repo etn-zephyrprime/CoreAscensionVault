@@ -232,15 +232,3 @@ async function processEvents(coreEvents, nftEvents, provider) {
 
   return dailyData;
 }
-
-function createFallbackHistory(totalCore, totalNfts) {
-  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('en-US', { 
-    month: 'short', day: 'numeric' 
-  });
-
-  return [
-    { date: yesterday, coreStaked: Math.floor(totalCore * 0.7), nftsStaked: Math.floor(totalNfts * 0.8) },
-    { date: today, coreStaked: Math.floor(totalCore), nftsStaked: totalNfts || 0 }
-  ];
-}
