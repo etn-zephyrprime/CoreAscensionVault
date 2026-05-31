@@ -35,7 +35,10 @@
       "date": "May 30",
       "coreStaked": 3821,
       "nftsStaked": 0
-    }
-  ],
-  "lastUpdated": "2026-05-30T22:45:00.000Z"
-}
+    },
+    {
+      "date":"May 31",
+      "coreStaked":3821,
+      "nftsStaked":0
+    }],
+    "lastUpdated":"2026-05-31T19:56:55.144Z"}
