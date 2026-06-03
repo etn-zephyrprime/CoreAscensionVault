@@ -9,74 +9,64 @@ function formatNumber(value, decimals = 2) {
   });
 }
 
-export default function VaultStats({ vaultData, isMobile }) {
-  const data = vaultData || {};
-
-  const dripSeconds = useDripCountdown(wallet.provider);
-
 function formatTime(seconds) {
   if (!seconds) return "Ready";
-
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-
   return `${h}h ${m}m`;
 }
+
+export default function VaultStats({ vaultData, isMobile }) {
+  const data = vaultData || {};
 
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: isMobile
-  ? "1fr"
-  : "repeat(4, minmax(0, 1fr))",
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(4, minmax(0, 1fr))",
         gap: 12,
         marginBottom: 12,
       }}
     >
-<StatBox
-  isMobile={isMobile}
-  icon={<Shield size={20} />}
-  label="Current APY"
-  value={`${formatNumber(data.currentApr, 2)}%`}
-/>
-
-<StatBox
-  isMobile={isMobile}
-  icon={<Lock size={20} />}
-  label="Total Staked"
-  value={`${formatNumber(data.totalCoreStaked, 0)} CORE`}
-/>
-
-<StatBox
-  isMobile={isMobile}
-  icon={<Flame size={20} />}
-  label="Rewards Left"
-  value={
-    <>
-      {formatNumber(data.rewardsRemaining, 0)} CORE
-      <div
-        style={{
-          fontSize: 11,
-          color: "#ffb37a",
-          marginTop: 6,
-        }}
-      >
-        Next 500 CORE drip in{" "}
-        {formatTime(data.nextDripSeconds)}
-      </div>
-    </>
-  }
-  color={orange}
-/>
-
-<StatBox
-  isMobile={isMobile}
-  icon={<Timer size={20} />}
-  label="Term Left"
-  value={`${Number(data.daysRemaining || 0)} Days`}
-  color={blue}
-/>
+      <StatBox
+        isMobile={isMobile}
+        icon={<Shield size={20} />}
+        label="Current APY"
+        value={`${formatNumber(data.currentApr, 2)}%`}
+      />
+      <StatBox
+        isMobile={isMobile}
+        icon={<Lock size={20} />}
+        label="Total Staked"
+        value={`${formatNumber(data.totalCoreStaked, 0)} CORE`}
+      />
+      <StatBox
+        isMobile={isMobile}
+        icon={<Flame size={20} />}
+        label="Rewards Left"
+        value={
+          <>
+            {formatNumber(data.rewardsRemaining, 0)} CORE
+            <div
+              style={{
+                fontSize: 11,
+                color: "#ffb37a",
+                marginTop: 6,
+              }}
+            >
+              Next 500 CORE drip in {formatTime(data.nextDripSeconds)}
+            </div>
+          </>
+        }
+        color={orange}
+      />
+      <StatBox
+        isMobile={isMobile}
+        icon={<Timer size={20} />}
+        label="Term Left"
+        value={`${Number(data.daysRemaining || 0)} Days`}
+        color={blue}
+      />
     </div>
   );
 }
