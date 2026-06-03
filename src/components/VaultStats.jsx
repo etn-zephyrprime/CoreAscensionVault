@@ -12,6 +12,17 @@ function formatNumber(value, decimals = 2) {
 export default function VaultStats({ vaultData, isMobile }) {
   const data = vaultData || {};
 
+  const dripSeconds = useDripCountdown(wallet.provider);
+
+function formatTime(seconds) {
+  if (!seconds) return "Ready";
+
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+
+  return `${h}h ${m}m`;
+}
+
   return (
     <div
       style={{
@@ -41,7 +52,21 @@ export default function VaultStats({ vaultData, isMobile }) {
   isMobile={isMobile}
   icon={<Flame size={20} />}
   label="Rewards Left"
-  value={`${formatNumber(data.rewardsRemaining, 0)} CORE`}
+  value={
+    <>
+      {formatNumber(data.rewardsRemaining, 0)} CORE
+      <div
+        style={{
+          fontSize: 11,
+          color: "#ffb37a",
+          marginTop: 6,
+        }}
+      >
+        Next 500 CORE drip in{" "}
+        {formatTime(data.nextDripSeconds)}
+      </div>
+    </>
+  }
   color={orange}
 />
 

@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { STAKING_ADDRESS } from "../config";
 import stakingABI from "../abis/stakingABI.json" assert { type: "json" };
+import dripABI from "../abis/dripABI.json" assert { type: "json" };
+import { DRIP_FUNDER_ADDRESS } from "../config";
 
 const fallbackVault = {
   coreStaked: 0,
@@ -17,6 +19,7 @@ const fallbackVault = {
   userShare: 0,
   totalCoreBurned: 0,
   stakeHistory: [],
+  nextDripSeconds: 0,
 };
 
 export function useVaultData(provider, account) {
@@ -32,23 +35,33 @@ export function useVaultData(provider, account) {
         provider
       );
 
+const drip = new ethers.Contract(
+  DRIP_FUNDER_ADDRESS,
+  dripABI,
+  provider
+);
+
       const [
         totalCoreStakedRaw,
         rewardsRemainingRaw,
         blocksRemaining,
         totalCoreBurnedRaw,
         rewardPerBlockRaw,
+        nextDripSecondsRaw,
       ] = await Promise.all([
         staking.totalCoreStaked(),
         staking.rewardsRemainingBySchedule(),
         staking.blocksRemaining(),
         staking.totalCoreBurned(),
         staking.rewardPerBlock(),
+        drip.nextDripIn(),
       ]);
 
       const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
       const rewardsRemaining = Number(ethers.formatEther(rewardsRemainingRaw));
       const rewardPerBlock = Number(ethers.formatEther(rewardPerBlockRaw));
+      const nextDripSecondsRaw = await drip.nextDripIn();
+      const nextDripSeconds = Number(nextDripSecondsRaw);
 
       const currentApr = totalCoreStaked > 0
         ? ((rewardPerBlock * 6_307_200) / totalCoreStaked) * 100
@@ -61,6 +74,7 @@ export function useVaultData(provider, account) {
         daysRemaining: Math.floor((Number(blocksRemaining) * 5) / 86400),
         totalCoreBurned: Number(ethers.formatEther(totalCoreBurnedRaw)),
         currentApr,
+        nextDripSeconds,
       };
 
       if (account) {
