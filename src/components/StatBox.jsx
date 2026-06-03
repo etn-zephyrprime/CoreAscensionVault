@@ -6,14 +6,17 @@ function StatBox({ icon, label, value, color = green, isMobile = false }) {
   return (
     <Panel style={{ minWidth: 0 }}>
       <div
-        style={{
-          display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: isMobile ? 8 : 10,
-          textAlign: isMobile ? "center" : "left",
-        }}
+style={{
+  display: "flex",
+  flexDirection: "column",           // Changed to column for all (cleaner)
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 10,
+  textAlign: "center",
+  padding: isMobile ? "18px 12px" : "22px 16px",
+  minHeight: "118px",                // Important: gives room for 2 lines
+  boxSizing: "border-box",
+}}
       >
         <div
           style={{
