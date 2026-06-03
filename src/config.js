@@ -10,7 +10,7 @@ export const ADMIN_ADDRESS = "0x3Fd2e5B4AC0efF6DFDF2446abddAB3f66B425099"
 export const BACKEND_URL = import.meta.env.VITE_GAME_API_URL || "http://localhost:4000";
 export const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com";
 export const STAKING_ADDRESS = "0x3764280F654d780d75463304f1ade8017d6e1cFD";
-export const DRIP_FUNDER_ADDRESS = "0x3764280F654d780d75463304f1ade8017d6e1cFD";
+export const DRIP_FUNDER_ADDRESS = "0x219341313B6142343C3003f3e2CAec96779cf8ED";
 
 console.log("BACKEND_URL =", BACKEND_URL);
 
