@@ -2,11 +2,44 @@ import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
+import { fetchStakeHistory } from "../../services/stakeHistoryService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
 
 const router = express.Router();
+
+// Example: backend/routes/api/vault.js  (or wherever your endpoint is)
+export async function getStakeHistory(req, res) {
+  try {
+    const { provider, stakingContract, dripContract } = req.app.locals; // or however you pass contracts
+
+    if (!stakingContract || !dripContract) {
+      return res.status(500).json({ error: "Contracts not initialized" });
+    }
+
+    const history = await fetchStakeHistory(stakingContract, dripContract, provider);
+
+    res.json({
+      history: history,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error("Stake history endpoint failed:", err);
+    res.status(500).json({ error: "Failed to fetch history" });
+  }
+}
+
+// Temporary force route
+export async function forceRefreshHistory(req, res) {
+  try {
+    const { stakingContract, dripContract, provider } = req.app.locals;
+    const history = await forceUpdateHistory(stakingContract, dripContract, provider);
+    res.json({ success: true, historyLength: history.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
 
 // Ensure data directory exists
 async function ensureDataDir() {

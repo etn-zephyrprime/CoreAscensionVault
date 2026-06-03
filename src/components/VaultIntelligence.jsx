@@ -64,32 +64,21 @@ function formatNumber(value, decimals = 2) {
 
 export default function VaultIntelligence({ isMobile, vaultData }) {
   const rawHistory = vaultData?.stakeHistory || [];
-  const currentRewards = vaultData?.rewardsRemaining || 0;
-  const currentApr = vaultData?.currentApr || 0;
-  const currentCoreStaked = vaultData?.totalCoreStaked || 0;
 
-  // === Enrich History Data ===
-  const enrichedHistory = rawHistory.map((entry, index) => {
-    const isToday = index === 0; // Assuming first item is today
-
-    return {
-      ...entry,
-      coreStaked: Number(entry.coreStaked || 0),
-      rewardsRemaining: isToday 
-        ? currentRewards 
-        : (entry.rewardsRemaining || currentRewards * 0.7), // fallback for older days
-      currentApr: isToday 
-        ? currentApr 
-        : (entry.currentApr || currentApr * 0.85),
-    };
-  });
+  // Simple enrichment - today should now have accurate values from backend
+  const enrichedHistory = rawHistory.map(entry => ({
+    ...entry,
+    coreStaked: Number(entry.coreStaked || 0),
+    rewardsRemaining: Number(entry.rewardsRemaining || 0),
+    currentApr: Number(entry.currentApr || 0),
+  }));
 
   const [visibleLines, setVisibleLines] = useState({
     coreStaked: true,
     rewardsRemaining: true,
     currentApr: true,
   });
-
+  
   const toggleLine = (line) => {
     setVisibleLines((prev) => ({
       ...prev,
