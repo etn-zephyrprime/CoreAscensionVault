@@ -62,23 +62,35 @@ function formatNumber(value, decimals = 2) {
   });
 }
 
+// Helper to parse "May 21", "Jun 3" etc.
+function parseDateString(dateStr) {
+  const currentYear = new Date().getFullYear();
+  const date = new Date(`${dateStr} ${currentYear}`);
+  if (date > new Date()) {
+    date.setFullYear(currentYear - 1);
+  }
+  return date;
+}
+
 export default function VaultIntelligence({ isMobile, vaultData }) {
   const rawHistory = vaultData?.stakeHistory || [];
 
-  // Simple enrichment - today should now have accurate values from backend
-  const enrichedHistory = rawHistory.map(entry => ({
-    ...entry,
-    coreStaked: Number(entry.coreStaked || 0),
-    rewardsRemaining: Number(entry.rewardsRemaining || 0),
-    currentApr: Number(entry.currentApr || 0),
-  }));
+  // Sort chronologically (May → June) + enrich numbers
+  const enrichedHistory = [...rawHistory]
+    .sort((a, b) => parseDateString(a.date) - parseDateString(b.date))
+    .map((entry) => ({
+      ...entry,
+      coreStaked: Number(entry.coreStaked || 0),
+      rewardsRemaining: Number(entry.rewardsRemaining || 0),
+      currentApr: Number(entry.currentApr || 0),
+    }));
 
   const [visibleLines, setVisibleLines] = useState({
     coreStaked: true,
     rewardsRemaining: true,
     currentApr: true,
   });
-  
+
   const toggleLine = (line) => {
     setVisibleLines((prev) => ({
       ...prev,
@@ -138,109 +150,111 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
             CORE ASCENSION METRICS OVER TIME
           </div>
 
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "center", 
-            gap: isMobile ? "8px" : "12px", 
-            flexWrap: "wrap",
-            marginBottom: isMobile ? 14 : 18 
-          }}>
-            <ToggleButton 
-              label="CORE Staked" 
-              color={green} 
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: isMobile ? "8px" : "12px",
+              flexWrap: "wrap",
+              marginBottom: isMobile ? 14 : 18,
+            }}
+          >
+            <ToggleButton
+              label="CORE Staked"
+              color={green}
               isActive={visibleLines.coreStaked}
-              onClick={() => toggleLine('coreStaked')}
+              onClick={() => toggleLine("coreStaked")}
             />
-            <ToggleButton 
-              label="Rewards Remaining" 
-              color="#ff8a3d" 
+            <ToggleButton
+              label="Rewards Remaining"
+              color="#ff8a3d"
               isActive={visibleLines.rewardsRemaining}
-              onClick={() => toggleLine('rewardsRemaining')}
+              onClick={() => toggleLine("rewardsRemaining")}
             />
-            <ToggleButton 
-              label="APY %" 
-              color="#00d4ff" 
+            <ToggleButton
+              label="APY %"
+              color="#00d4ff"
               isActive={visibleLines.currentApr}
-              onClick={() => toggleLine('currentApr')}
+              onClick={() => toggleLine("currentApr")}
             />
           </div>
 
           <ResponsiveContainer width="100%" height={isMobile ? 300 : 420}>
-            <LineChart 
-              data={enrichedHistory} 
+            <LineChart
+              data={enrichedHistory}
               margin={{ top: 10, right: isMobile ? 10 : 30, left: isMobile ? 0 : 10, bottom: 10 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#222" />
 
-              <XAxis 
-                dataKey="date" 
-                stroke="#666" 
+              <XAxis
+                dataKey="date"
+                stroke="#666"
                 fontSize={isMobile ? 10 : 12}
                 tickLine={false}
                 axisLine={{ stroke: "#444" }}
               />
 
-              <YAxis 
-                yAxisId="left" 
-                stroke={green} 
-                tickFormatter={(v) => `${(v/1000).toFixed(0)}k`}
+              <YAxis
+                yAxisId="left"
+                stroke={green}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                 fontSize={isMobile ? 10 : 11}
               />
 
-              <YAxis 
-                yAxisId="right" 
-                orientation="right" 
+              <YAxis
+                yAxisId="right"
+                orientation="right"
                 stroke="#00d4ff"
                 fontSize={isMobile ? 10 : 11}
               />
 
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: "#111", 
-                  border: "1px solid #555", 
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#111",
+                  border: "1px solid #555",
                   borderRadius: 12,
                   padding: "10px 14px",
-                  fontSize: isMobile ? 12 : 13
+                  fontSize: isMobile ? 12 : 13,
                 }}
               />
 
               <Legend />
 
               {visibleLines.coreStaked && (
-                <Line 
-                  yAxisId="left" 
-                  dataKey="coreStaked" 
-                  stroke={green} 
-                  strokeWidth={isMobile ? 3.5 : 4.5} 
+                <Line
+                  yAxisId="left"
+                  dataKey="coreStaked"
+                  stroke={green}
+                  strokeWidth={isMobile ? 3.5 : 4.5}
                   dot={{ r: isMobile ? 4 : 5, fill: green }}
                   activeDot={{ r: 7 }}
-                  name="CORE Staked" 
+                  name="CORE Staked"
                   connectNulls={true}
                 />
               )}
 
               {visibleLines.rewardsRemaining && (
-                <Line 
-                  yAxisId="left" 
-                  dataKey="rewardsRemaining" 
-                  stroke="#ff8a3d" 
-                  strokeWidth={isMobile ? 2.5 : 3} 
+                <Line
+                  yAxisId="left"
+                  dataKey="rewardsRemaining"
+                  stroke="#ff8a3d"
+                  strokeWidth={isMobile ? 2.5 : 3}
                   strokeDasharray="6 3"
                   dot={{ r: isMobile ? 3.5 : 4, fill: "#ff8a3d" }}
-                  name="Rewards Remaining" 
+                  name="Rewards Remaining"
                   connectNulls={true}
                 />
               )}
 
               {visibleLines.currentApr && (
-                <Line 
-                  yAxisId="right" 
-                  dataKey="currentApr" 
-                  stroke="#00d4ff" 
-                  strokeWidth={isMobile ? 2.5 : 3} 
+                <Line
+                  yAxisId="right"
+                  dataKey="currentApr"
+                  stroke="#00d4ff"
+                  strokeWidth={isMobile ? 2.5 : 3}
                   strokeDasharray="4 3"
                   dot={{ r: isMobile ? 3.5 : 4, fill: "#00d4ff" }}
-                  name="APY %" 
+                  name="APY %"
                   connectNulls={true}
                 />
               )}
