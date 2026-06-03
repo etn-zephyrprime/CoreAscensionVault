@@ -39,7 +39,7 @@ async function startHistoryPoller() {
 
   // Initial update
   try {
-    await fetchStakeHistory(stakingContract, provider);
+    await fetchStakeHistory(stakingContract, dripContract, provider);
   } catch (e) {
     console.error("Initial history update failed:", e);
   }
@@ -55,7 +55,7 @@ async function startHistoryPoller() {
     console.log(`\n⏰ [${new Date().toISOString()}] Running hourly history update...`);
 
     try {
-      await fetchStakeHistory(stakingContract, provider);
+      await fetchStakeHistory(stakingContract, dripContract, provider);
       console.log("✅ Hourly history update completed successfully");
     } catch (error) {
       console.error("❌ Hourly history update failed:", error);

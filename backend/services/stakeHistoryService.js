@@ -3,10 +3,7 @@ import { ethers } from "ethers";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { 
-  loadLastBlockLocked, 
-  saveLastBlockLocked 
-} from "../utils/blockState.js";
+import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -40,14 +37,10 @@ async function loadHistory() {
   }
 }
 
-// Save history
 async function saveHistory(data) {
   try {
     await ensureDataDir();
-    const payload = {
-      ...data,
-      lastUpdated: new Date().toISOString()
-    };
+    const payload = { ...data, lastUpdated: new Date().toISOString() };
     await fs.writeFile(HISTORY_FILE, JSON.stringify(payload, null, 2));
     console.log(`[StakeHistory] Saved ${data.history?.length || 0} days`);
   } catch (err) {
@@ -55,73 +48,24 @@ async function saveHistory(data) {
   }
 }
 
-// Process events (your original logic, slightly cleaned)
-async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider) {
-  const dailyData = {};
-  const blockCache = new Map();
-
-  // Core Staking Events
-  for (const event of coreEvents) {
-    try {
-      let block = blockCache.get(event.blockNumber);
-      if (!block) {
-        block = await provider.getBlock(event.blockNumber, false);
-        blockCache.set(event.blockNumber, block);
-      }
-      const date = new Date(block.timestamp * 1000);
-      const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-      if (!dailyData[dayKey]) {
-        dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-      }
-      dailyData[dayKey].coreStaked += Number(ethers.formatEther(event.args.amount || 0));
-    } catch (e) {}
-  }
-
-  // NFT Stake Events
-  for (const event of nftEvents) {
-    try {
-      let block = blockCache.get(event.blockNumber);
-      if (!block) {
-        block = await provider.getBlock(event.blockNumber, false);
-        blockCache.set(event.blockNumber, block);
-      }
-      const date = new Date(block.timestamp * 1000);
-      const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-      dailyData[dayKey].nftsStaked += 1;
-    } catch (e) {}
-  }
-
-  // NFT Withdraw Events
-  for (const event of nftWithdrawEvents || []) {
-    try {
-      let block = blockCache.get(event.blockNumber);
-      if (!block) {
-        block = await provider.getBlock(event.blockNumber, false);
-        blockCache.set(event.blockNumber, block);
-      }
-      const date = new Date(block.timestamp * 1000);
-      const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
-      dailyData[dayKey].nftsStaked -= 1;
-    } catch (e) {}
-  }
-
-  return dailyData;
-}
-
 // ==================== MAIN FUNCTION ====================
 export async function fetchStakeHistory(stakingContract, dripContract, provider) {
   try {
+    // === Safety Checks ===
+    if (!provider) {
+      throw new Error("Provider is undefined - cannot get current block");
+    }
+    if (!stakingContract) {
+      throw new Error("StakingContract is undefined");
+    }
+
     const currentBlock = await provider.getBlockNumber();
     let state = await loadHistory();
     let lastProcessedBlock = state.lastProcessedBlock || CONTRACT_CREATION_BLOCK;
 
     console.log(`[StakeHistory] Last: ${lastProcessedBlock} | Current: ${currentBlock}`);
 
+    // Skip if already up to date
     if (lastProcessedBlock >= currentBlock - 30) {
       console.log("[StakeHistory] Up to date.");
       return state.history || [];
@@ -151,7 +95,7 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider)
         allNewNftEvents.push(...nftChunk);
         if (withdrawChunk) allNewNftWithdrawEvents.push(...withdrawChunk);
       } catch (err) {
-        console.warn(`Chunk ${from}-${to} failed`);
+        console.warn(`Chunk ${from}-${to} failed:`, err.message);
       }
 
       await new Promise(r => setTimeout(r, 150));
@@ -166,7 +110,6 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider)
 
     let updatedHistory = [...(state.history || [])];
 
-    // Merge new daily data
     Object.values(newDailyData).forEach(newDay => {
       const idx = updatedHistory.findIndex(h => h.date === newDay.date);
       if (idx !== -1) {
@@ -177,7 +120,7 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider)
       }
     });
 
-    // === NEW: Capture accurate current metrics for TODAY ===
+    // === Capture accurate current metrics for TODAY ===
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     let todayEntry = updatedHistory.find(h => h.date === today);
 
@@ -201,7 +144,6 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider)
         ? ((rpb * 6307200) / totalStaked) * 100 
         : 0;
 
-      // Override today's values with live accurate data
       todayEntry.coreStaked = totalStaked;
       todayEntry.rewardsRemaining = rewardsRemaining;
       todayEntry.currentApr = currentApr;
@@ -232,9 +174,62 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider)
     return updatedHistory;
 
   } catch (err) {
-    console.error("[StakeHistory] Error:", err);
+    console.error("[StakeHistory] Error:", err.message);
     throw err;
   }
+}
+
+// Keep processEvents function (unchanged)
+async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider) {
+  const dailyData = {};
+  const blockCache = new Map();
+
+  for (const event of coreEvents) {
+    try {
+      let block = blockCache.get(event.blockNumber);
+      if (!block) {
+        block = await provider.getBlock(event.blockNumber, false);
+        blockCache.set(event.blockNumber, block);
+      }
+      const date = new Date(block.timestamp * 1000);
+      const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
+      dailyData[dayKey].coreStaked += Number(ethers.formatEther(event.args.amount || 0));
+    } catch (e) {}
+  }
+
+  for (const event of nftEvents) {
+    try {
+      let block = blockCache.get(event.blockNumber);
+      if (!block) {
+        block = await provider.getBlock(event.blockNumber, false);
+        blockCache.set(event.blockNumber, block);
+      }
+      const date = new Date(block.timestamp * 1000);
+      const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
+      dailyData[dayKey].nftsStaked += 1;
+    } catch (e) {}
+  }
+
+  for (const event of nftWithdrawEvents || []) {
+    try {
+      let block = blockCache.get(event.blockNumber);
+      if (!block) {
+        block = await provider.getBlock(event.blockNumber, false);
+        blockCache.set(event.blockNumber, block);
+      }
+      const date = new Date(block.timestamp * 1000);
+      const dayKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      if (!dailyData[dayKey]) dailyData[dayKey] = { date: dayKey, coreStaked: 0, nftsStaked: 0 };
+      dailyData[dayKey].nftsStaked -= 1;
+    } catch (e) {}
+  }
+
+  return dailyData;
 }
 
 export async function forceUpdateHistory(stakingContract, dripContract, provider) {
