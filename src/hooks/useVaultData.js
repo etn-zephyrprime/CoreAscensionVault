@@ -30,34 +30,35 @@ export function useVaultData(provider, account) {
 
     setLoading(true);
     try {
-      const staking = new ethers.Contract(
-        STAKING_ADDRESS,
-        stakingABI,
-        provider
-      );
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
+      const drip = new ethers.Contract(DRIP_FUNDER_ADDRESS, dripABI, provider);
 
-      const drip = new ethers.Contract(
-        DRIP_FUNDER_ADDRESS,
-        dripABI,
-        provider
-      );
-
-      // === Fetch Global Data ===
+      // === Global Data with Safe Calls ===
       const [
         totalCoreStakedRaw,
         rewardsRemainingRaw,
-        blocksRemainingRaw,
         totalCoreBurnedRaw,
         rewardPerBlockRaw,
         nextDripSecondsRaw,
       ] = await Promise.all([
         staking.totalCoreStaked(),
         staking.rewardsRemainingBySchedule(),
-        staking.blocksRemaining(),
         staking.totalCoreBurned(),
         staking.rewardPerBlock(),
         drip.nextDripIn(),
       ]);
+
+      let blocksRemainingRaw = 0;
+      try {
+        blocksRemainingRaw = await staking.blocksRemaining();
+      } catch (err) {
+        console.warn("⚠️ blocksRemaining() reverted - using fallback", err.message);
+        // Optional: Try alternative
+        try {
+          const estimatedSeconds = await staking.estimatedSecondsRemaining();
+          blocksRemainingRaw = Math.floor(Number(estimatedSeconds) / 5); // rough conversion
+        } catch (_) {}
+      }
 
       const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
       const rewardsRemaining = Number(ethers.formatEther(rewardsRemainingRaw));
@@ -69,55 +70,56 @@ export function useVaultData(provider, account) {
           ? ((rewardPerBlock * 6_307_200) / totalCoreStaked) * 100
           : 0;
 
-      const daysRemaining = Math.floor(
-        (Number(blocksRemainingRaw) * 5) / 86400
-      );
+      const daysRemaining = Math.floor((Number(blocksRemainingRaw) * 5) / 86400);
 
       let nextVaultData = {
         ...fallbackVault,
         totalCoreStaked,
         rewardsRemaining,
-        daysRemaining,
+        daysRemaining: Math.max(0, daysRemaining),
         totalCoreBurned: Number(ethers.formatEther(totalCoreBurnedRaw)),
         currentApr,
         nextDripSeconds,
       };
 
-      // === Fetch User Data (if connected) ===
+      // === User Data ===
       if (account) {
-        const user = await staking.getUser(account);
+        try {
+          const user = await staking.getUser(account);
 
-        const entryTime = Number(user[3]);
-        const now = Math.floor(Date.now() / 1000);
-        const minStakeTime = 60 * 24 * 60 * 60; // 60 days
+          const entryTime = Number(user[3]);
+          const now = Math.floor(Date.now() / 1000);
+          const minStakeTime = Number(await staking.MIN_STAKE_TIME()); // Better to read from contract
 
-        const penaltySecondsRemaining = entryTime > 0
-          ? Math.max(0, entryTime + minStakeTime - now)
-          : 0;
+          const penaltySecondsRemaining =
+            entryTime > 0 ? Math.max(0, entryTime + minStakeTime - now) : 0;
 
-        const penaltyDaysRemaining = Math.ceil(penaltySecondsRemaining / 86400);
+          const penaltyDaysRemaining = Math.ceil(penaltySecondsRemaining / 86400);
 
-        nextVaultData = {
-          ...nextVaultData,
-          coreStaked: Number(ethers.formatEther(user[0])),
-          nftCount: Number(user[1]),
-          earnedCore: Number(ethers.formatEther(user[4])),
-          earlyExit: Boolean(user[5]),
-          boost: Number(user[6]) / 10000,
-          entryTime,
-          penaltyDaysRemaining,
-          userShare: totalCoreStaked > 0
-            ? (Number(ethers.formatEther(user[0])) / totalCoreStaked) * 100
-            : 0,
-        };
+          nextVaultData = {
+            ...nextVaultData,
+            coreStaked: Number(ethers.formatEther(user[0])),
+            nftCount: Number(user[1]),
+            earnedCore: Number(ethers.formatEther(user[4])),
+            earlyExit: Boolean(user[5]),
+            boost: Number(user[6]) / 10000,
+            entryTime,
+            penaltyDaysRemaining,
+            userShare: totalCoreStaked > 0
+              ? (Number(ethers.formatEther(user[0])) / totalCoreStaked) * 100
+              : 0,
+          };
+        } catch (userErr) {
+          console.warn("User data fetch failed:", userErr.message);
+        }
       }
 
-      // === Load Stake History ===
+      // === Stake History ===
       const history = await fetchStakeHistory();
       nextVaultData.stakeHistory = history || [];
 
       setVaultData(nextVaultData);
-      console.log("✅ Vault data loaded successfully");
+      console.log("✅ Vault data loaded");
     } catch (err) {
       console.error("❌ loadVaultData failed:", err);
     } finally {
@@ -125,11 +127,9 @@ export function useVaultData(provider, account) {
     }
   }, [provider, account]);
 
-  // Auto-refresh
   useEffect(() => {
     loadVaultData();
-
-    const interval = setInterval(loadVaultData, 45 * 1000); // every 45 seconds
+    const interval = setInterval(loadVaultData, 45000);
     return () => clearInterval(interval);
   }, [loadVaultData]);
 
@@ -140,7 +140,6 @@ export function useVaultData(provider, account) {
   };
 }
 
-// Separate history fetcher
 async function fetchStakeHistory() {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
@@ -148,7 +147,7 @@ async function fetchStakeHistory() {
     const data = await res.json();
     return data.history || [];
   } catch (err) {
-    console.warn("Backend history fetch failed, using empty history:", err);
+    console.warn("History fetch failed:", err);
     return [];
   }
 }
