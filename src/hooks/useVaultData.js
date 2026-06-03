@@ -60,7 +60,6 @@ const drip = new ethers.Contract(
       const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
       const rewardsRemaining = Number(ethers.formatEther(rewardsRemainingRaw));
       const rewardPerBlock = Number(ethers.formatEther(rewardPerBlockRaw));
-      const nextDripSecondsRaw = await drip.nextDripIn();
       const nextDripSeconds = Number(nextDripSecondsRaw);
 
       const currentApr = totalCoreStaked > 0
