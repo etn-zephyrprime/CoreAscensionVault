@@ -2,7 +2,7 @@ import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { fetchStakeHistory } from "../../services/stakeHistoryService.js";
+import { fetchStakeHistory } from "../services/stakeHistoryService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
