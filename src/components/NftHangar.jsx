@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { ethers } from "ethers";
 
 import Panel from "./Panel.jsx";
 import NeonButton from "./NeonButton.jsx";
 import { green, panel2 } from "../styles/theme.js";
 
-import { STAKING_ADDRESS } from "../config.js";
+import { STAKING_ADDRESS, BACKEND_URL } from "../config.js";
 import stakingABI from "../abis/stakingABI.json";
 import EVGABI from "../abis/EVGABI.json";
 
@@ -22,122 +22,117 @@ export default function NftHangar({
   const [selectedNft, setSelectedNft] = useState(null);
   const [txLoading, setTxLoading] = useState(false);
 
-const {
-  ownedNFTs,
-  mapping,
-  loading,
-  message,
-  reloadOwnedNfts,
-  refreshOwnedNfts,
-} = useOwnedNfts(wallet.account);
+  const {
+    ownedNFTs,
+    mapping,
+    loading,
+    message,
+    reloadOwnedNfts,
+    refreshOwnedNfts,
+  } = useOwnedNfts(wallet.account);
 
-const [stakedNfts, setStakedNfts] = useState([]);
-const [selectedStakedNft, setSelectedStakedNft] = useState(null);
+  const [stakedNfts, setStakedNfts] = useState([]);
+  const [selectedStakedNft, setSelectedStakedNft] = useState(null);
+
+  // Get NFT name from mapping
+  const getNftName = (nft) => {
+    if (!mapping || !nft?.nftAddress || !nft?.tokenId) return null;
+    const collectionKey = nft.nftAddress.toLowerCase();
+    return mapping[collectionKey]?.[nft.tokenId]?.name || null;
+  };
+
+  // Set of names currently staked
+  const stakedNames = useMemo(() => {
+    const names = new Set();
+    stakedNfts.forEach((nft) => {
+      const name = getNftName(nft);
+      if (name) names.add(name);
+    });
+    return names;
+  }, [stakedNfts, mapping]);
 
   async function stakeSelectedNft() {
+    if (!selectedNft) {
+      alert("Please select an NFT first");
+      return;
+    }
+
+    const nftName = getNftName(selectedNft);
+
+    if (nftName && stakedNames.has(nftName)) {
+      alert(`You already have a "${nftName}" staked.\n\nOnly one NFT per unique name is allowed.`);
+      return;
+    }
+
     try {
-      if (!wallet.account) {
-        alert("Connect wallet first");
-        return;
-      }
-
-      if (!selectedNft) {
-        alert("Select an NFT first");
-        return;
-      }
-
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
 
       const signer = await wallet.getSigner();
 
-      const nft = new ethers.Contract(
-        selectedNft.nftAddress,
-        EVGABI,
-        signer
-      );
-
-      const staking = new ethers.Contract(
-        STAKING_ADDRESS,
-        stakingABI,
-        signer
-      );
+      const nftContract = new ethers.Contract(selectedNft.nftAddress, EVGABI, signer);
+      const stakingContract = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
 
       const tokenId = BigInt(selectedNft.tokenId);
 
-      const approved = await nft.getApproved(tokenId);
-      const approvedForAll = await nft.isApprovedForAll(
-        wallet.account,
-        STAKING_ADDRESS
-      );
+      // Approve if needed
+      const approved = await nftContract.getApproved(tokenId);
+      const approvedForAll = await nftContract.isApprovedForAll(wallet.account, STAKING_ADDRESS);
 
-      if (
-        approved.toLowerCase() !== STAKING_ADDRESS.toLowerCase() &&
-        !approvedForAll
-      ) {
-        const approveTx = await nft.approve(STAKING_ADDRESS, tokenId);
+      if (approved.toLowerCase() !== STAKING_ADDRESS.toLowerCase() && !approvedForAll) {
+        const approveTx = await nftContract.approve(STAKING_ADDRESS, tokenId);
         await approveTx.wait();
       }
 
-      const stakeTx = await staking.stakeNFT(
-        selectedNft.nftAddress,
-        tokenId
-      );
-
+      const stakeTx = await stakingContract.stakeNFT(selectedNft.nftAddress, tokenId);
       await stakeTx.wait();
 
       await reloadVaultData?.();
       await reloadOwnedNfts();
+      await loadStakedNfts();
 
       setSelectedNft(null);
-      alert("NFT staked successfully.");
+      alert("NFT staked successfully!");
     } catch (err) {
       console.error("Stake NFT failed:", err);
-      alert(err?.shortMessage || err?.reason || "Stake NFT failed");
+      alert(err?.shortMessage || err?.reason || "Failed to stake NFT");
     } finally {
       setTxLoading(false);
     }
   }
 
-async function loadStakedNfts() {
-  try {
-    if (!wallet.provider || !wallet.account) {
-      setStakedNfts([]);
-      return;
-    }
+  async function loadStakedNfts() {
+    try {
+      if (!wallet.provider || !wallet.account) {
+        setStakedNfts([]);
+        return;
+      }
 
-    const staking = new ethers.Contract(
-      STAKING_ADDRESS,
-      stakingABI,
-      wallet.provider
-    );
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
+      const list = await staking.getUserNFTs(wallet.account);
 
-    const list = await staking.getUserNFTs(wallet.account);
-
-    setStakedNfts(
-      list.map((item) => ({
+      const enriched = list.map((item) => ({
         nftAddress: item.collection,
         tokenId: item.tokenId.toString(),
-      }))
-    );
-  } catch (err) {
-    console.error("loadStakedNfts failed:", err);
-  }
-}
+        name: getNftName({
+          nftAddress: item.collection,
+          tokenId: item.tokenId.toString(),
+        }),
+      }));
 
-useEffect(() => {
-  loadStakedNfts();
-}, [wallet.provider, wallet.account, vaultData?.nftCount]);
-
-async function withdrawSelectedNft() {
-  try {
-    if (!wallet.account) {
-      alert("Connect wallet first");
-      return;
+      setStakedNfts(enriched);
+    } catch (err) {
+      console.error("loadStakedNfts failed:", err);
     }
+  }
 
+  useEffect(() => {
+    loadStakedNfts();
+  }, [wallet.provider, wallet.account, vaultData?.nftCount, mapping]);
+
+  async function withdrawSelectedNft() {
     if (!selectedStakedNft) {
-      alert("Select a staked NFT first.");
+      alert("Select a staked NFT first");
       return;
     }
 
@@ -145,45 +140,40 @@ async function withdrawSelectedNft() {
       Number(vaultData?.coreStaked || 0) > 0 &&
       Number(vaultData?.nftCount || 0) <= 1
     ) {
-      alert("You must keep at least 1 NFT staked while CORE is staked.");
+      alert("You must keep at least 1 NFT staked while you have CORE staked.");
       return;
     }
 
-    const confirmed = window.confirm("Withdraw this NFT from the vault?");
+    const confirmed = window.confirm("Withdraw this NFT?");
     if (!confirmed) return;
 
-    setTxLoading(true);
-    await wallet.ensureCorrectNetwork();
+    try {
+      setTxLoading(true);
+      await wallet.ensureCorrectNetwork();
 
-    const signer = await wallet.getSigner();
+      const signer = await wallet.getSigner();
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
 
-    const staking = new ethers.Contract(
-      STAKING_ADDRESS,
-      stakingABI,
-      signer
-    );
+      const tx = await staking.withdrawNFT(
+        selectedStakedNft.nftAddress,
+        BigInt(selectedStakedNft.tokenId)
+      );
 
-    const tx = await staking.withdrawNFT(
-      selectedStakedNft.nftAddress,
-      BigInt(selectedStakedNft.tokenId)
-    );
+      await tx.wait();
 
-    await tx.wait();
+      await reloadVaultData?.();
+      await loadStakedNfts();
+      await reloadOwnedNfts();
 
-    await reloadVaultData?.();
-    await loadStakedNfts();
-    await reloadOwnedNfts();
-
-    setSelectedStakedNft(null);
-
-    alert("NFT withdrawn successfully.");
-  } catch (err) {
-    console.error("Withdraw NFT failed:", err);
-    alert(err?.shortMessage || err?.reason || "Withdraw NFT failed");
-  } finally {
-    setTxLoading(false);
+      setSelectedStakedNft(null);
+      alert("NFT withdrawn successfully.");
+    } catch (err) {
+      console.error("Withdraw failed:", err);
+      alert(err?.shortMessage || err?.reason || "Failed to withdraw NFT");
+    } finally {
+      setTxLoading(false);
+    }
   }
-}
 
   return (
     <Panel style={{ background: panel2 }}>
@@ -200,41 +190,18 @@ async function withdrawSelectedNft() {
           justifyContent: "space-between",
           cursor: "pointer",
           textAlign: "left",
-          boxSizing: "border-box",
           marginBottom: showNftGallery ? 12 : 0,
         }}
       >
         <div>
-          <div
-            style={{
-              fontSize: 12,
-              color: "#888",
-              textTransform: "uppercase",
-              letterSpacing: 1.1,
-              marginBottom: 4,
-            }}
-          >
+          <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1.1, marginBottom: 4 }}>
             NFT Hangar
           </div>
-
-          <div
-            style={{
-              fontSize: isMobile ? 18 : 22,
-              fontWeight: 900,
-              color: green,
-            }}
-          >
+          <div style={{ fontSize: isMobile ? 18 : 22, fontWeight: 900, color: green }}>
             {vaultData?.nftCount || 0}/4 Boost Assets
           </div>
-
-          <div
-            style={{
-              fontSize: 12,
-              color: "#9a9a9a",
-              marginTop: 3,
-            }}
-          >
-            Stake eligible NFTs to increase your vault weight
+          <div style={{ fontSize: 12, color: "#9a9a9a", marginTop: 3 }}>
+            Stake eligible NFTs • Max 1 per unique name
           </div>
         </div>
 
@@ -251,35 +218,25 @@ async function withdrawSelectedNft() {
             justifyContent: "center",
             fontSize: 18,
             fontWeight: 900,
-            boxShadow: "0 0 8px rgba(0,0,0,0.2)",
           }}
         >
           {showNftGallery ? "−" : "+"}
         </div>
       </div>
 
-<NeonButton
-  variant="dark"
-  onClick={refreshOwnedNfts}
-  disabled={!wallet.account || loading}
-  style={{ marginBottom: 12 }}
->
-  {loading ? "Refreshing..." : "Refresh NFTs"}
-</NeonButton>
+      <NeonButton
+        variant="dark"
+        onClick={refreshOwnedNfts}
+        disabled={!wallet.account || loading}
+        style={{ marginBottom: 12 }}
+      >
+        {loading ? "Refreshing..." : "Refresh NFTs"}
+      </NeonButton>
 
       {showNftGallery && (
         <>
-          {loading && (
-            <div style={{ color: "#888", fontSize: 12, marginBottom: 8 }}>
-              Loading NFTs...
-            </div>
-          )}
-
-          {message && (
-            <div style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 8 }}>
-              {message}
-            </div>
-          )}
+          {loading && <div style={{ color: "#888", fontSize: 12, marginBottom: 8 }}>Loading NFTs...</div>}
+          {message && <div style={{ color: "#ff6b6b", fontSize: 12, marginBottom: 8 }}>{message}</div>}
 
           {!loading && ownedNFTs.length === 0 && (
             <div style={{ color: "#888", fontSize: 12, marginBottom: 12 }}>
@@ -287,208 +244,117 @@ async function withdrawSelectedNft() {
             </div>
           )}
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              overflowX: "auto",
-              paddingBottom: 6,
-              marginBottom: 12,
-            }}
-          >
+          {/* Owned NFTs */}
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: 16 }}>
             {ownedNFTs.map((nft) => {
-              const selected =
-                selectedNft?.nftAddress?.toLowerCase() ===
-                  nft.nftAddress?.toLowerCase() &&
+              const nftName = getNftName(nft);
+              const isNameStaked = nftName && stakedNames.has(nftName);
+              const isSelected =
+                selectedNft?.nftAddress?.toLowerCase() === nft.nftAddress?.toLowerCase() &&
                 String(selectedNft?.tokenId) === String(nft.tokenId);
-
-              const imageSrc = getNftImageSrc(nft, mapping);
 
               return (
                 <div
                   key={`${nft.nftAddress}-${nft.tokenId}`}
-                  onClick={() => setSelectedNft(nft)}
+                  onClick={() => !isNameStaked && setSelectedNft(nft)}
                   style={{
                     flex: "0 0 auto",
                     width: 96,
                     borderRadius: 8,
-                    border: selected
+                    border: isSelected
                       ? "2px solid #3ea6ff"
+                      : isNameStaked
+                      ? "2px solid #666"
                       : "1px solid #333",
-                    background: "#111",
+                    background: isNameStaked ? "#1a1a1a" : "#111",
                     padding: 6,
-                    cursor: "pointer",
+                    cursor: isNameStaked ? "not-allowed" : "pointer",
+                    opacity: isNameStaked ? 0.6 : 1,
                     textAlign: "center",
-                    boxSizing: "border-box",
                   }}
                 >
                   <img
-                    src={imageSrc}
-                    alt={nft.name || `NFT #${nft.tokenId}`}
-                    onError={(e) => {
-                      e.currentTarget.src = "/placeholder.png";
-                    }}
-                    style={{
-                      width: "100%",
-                      height: 76,
-                      objectFit: "cover",
-                      borderRadius: 6,
-                      marginBottom: 4,
-                    }}
+                    src={getNftImageSrc(nft, mapping)}
+                    alt={nftName || `#${nft.tokenId}`}
+                    onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                    style={{ width: "100%", height: 76, objectFit: "cover", borderRadius: 6 }}
                   />
-
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 800,
-                      color: "#fff",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {nft.name || `#${nft.tokenId}`}
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", marginTop: 4 }}>
+                    {nftName || `#${nft.tokenId}`}
                   </div>
-
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "#aaa",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {nft.background || "Unknown"}
-                  </div>
+                  {isNameStaked && <div style={{ fontSize: 10, color: "#ff6666" }}>Already Staked</div>}
                 </div>
               );
             })}
           </div>
 
-{stakedNfts.length > 0 && (
-  <>
-    <div
-      style={{
-        fontSize: 12,
-        color: "#888",
-        textTransform: "uppercase",
-        letterSpacing: 1.1,
-        marginBottom: 8,
-      }}
-    >
-      Staked NFTs
-    </div>
+          {/* Staked NFTs */}
+          {stakedNfts.length > 0 && (
+            <>
+              <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase", letterSpacing: 1.1, marginBottom: 8 }}>
+                Currently Staked
+              </div>
+              <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: 16 }}>
+                {stakedNfts.map((nft) => {
+                  const isSelected =
+                    selectedStakedNft?.nftAddress?.toLowerCase() === nft.nftAddress?.toLowerCase() &&
+                    String(selectedStakedNft?.tokenId) === String(nft.tokenId);
 
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        overflowX: "auto",
-        paddingBottom: 6,
-        marginBottom: 12,
-      }}
-    >
-      {stakedNfts.map((nft) => {
-        const selected =
-          selectedStakedNft?.nftAddress?.toLowerCase() ===
-            nft.nftAddress?.toLowerCase() &&
-          String(selectedStakedNft?.tokenId) === String(nft.tokenId);
+                  return (
+                    <div
+                      key={`staked-${nft.nftAddress}-${nft.tokenId}`}
+                      onClick={() => setSelectedStakedNft(nft)}
+                      style={{
+                        flex: "0 0 auto",
+                        width: 96,
+                        borderRadius: 8,
+                        border: isSelected ? "2px solid #ffcc66" : "1px solid #333",
+                        background: "#111",
+                        padding: 6,
+                        cursor: "pointer",
+                        textAlign: "center",
+                      }}
+                    >
+                      <img
+                        src={getNftImageSrc(nft, mapping)}
+                        alt={nft.name || `#${nft.tokenId}`}
+                        onError={(e) => (e.currentTarget.src = "/placeholder.png")}
+                        style={{ width: "100%", height: 76, objectFit: "cover", borderRadius: 6 }}
+                      />
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "#fff", marginTop: 4 }}>
+                        {nft.name || `#${nft.tokenId}`}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#ffcc66" }}>Staked</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
-        const imageSrc = getNftImageSrc(nft, mapping);
-
-        return (
-          <div
-            key={`staked-${nft.nftAddress}-${nft.tokenId}`}
-            onClick={() => setSelectedStakedNft(nft)}
-            style={{
-              flex: "0 0 auto",
-              width: 96,
-              borderRadius: 8,
-              border: selected ? "2px solid #ffcc66" : "1px solid #333",
-              background: "#111",
-              padding: 6,
-              cursor: "pointer",
-              textAlign: "center",
-              boxSizing: "border-box",
-            }}
-          >
-            <img
-              src={imageSrc}
-              alt={`Staked NFT #${nft.tokenId}`}
-              onError={(e) => {
-                e.currentTarget.src = "/placeholder.png";
-              }}
-              style={{
-                width: "100%",
-                height: 76,
-                objectFit: "cover",
-                borderRadius: 6,
-                marginBottom: 4,
-              }}
-            />
-
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                color: "#fff",
-              }}
-            >
-              #{nft.tokenId}
-            </div>
-
-            <div
-              style={{
-                fontSize: 10,
-                color: "#ffcc66",
-              }}
-            >
-              Staked
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  </>
-)}
-
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <NeonButton
               variant="green"
               onClick={stakeSelectedNft}
               disabled={!wallet.account || !selectedNft || txLoading}
-              style={{
-                flex: isMobile ? "1 1 100%" : "1 1 auto",
-              }}
+              style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}
             >
               {txLoading ? "Processing..." : "Stake Selected NFT"}
             </NeonButton>
 
-<NeonButton
-  variant="dark"
-  onClick={withdrawSelectedNft}
-  disabled={
-    txLoading ||
-    !wallet.account ||
-    !selectedStakedNft ||
-    (
-      Number(vaultData?.coreStaked || 0) > 0 &&
-      Number(vaultData?.nftCount || 0) <= 1
-    )
-  }
-  style={{
-    flex: isMobile ? "1 1 100%" : "1 1 auto",
-  }}
->
-  {txLoading ? "Processing..." : "Withdraw Selected NFT"}
-</NeonButton>
+            <NeonButton
+              variant="dark"
+              onClick={withdrawSelectedNft}
+              disabled={
+                txLoading ||
+                !wallet.account ||
+                !selectedStakedNft ||
+                (Number(vaultData?.coreStaked || 0) > 0 && Number(vaultData?.nftCount || 0) <= 1)
+              }
+              style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}
+            >
+              {txLoading ? "Processing..." : "Withdraw Selected NFT"}
+            </NeonButton>
           </div>
         </>
       )}
