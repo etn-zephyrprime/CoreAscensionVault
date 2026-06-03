@@ -40,7 +40,7 @@ export default function VaultStats({ vaultData, isMobile }) {
         label="Total Staked"
         value={`${formatNumber(data.totalCoreStaked, 0)} CORE`}
       />
-      <StatBox
+<StatBox
         isMobile={isMobile}
         icon={<Flame size={20} />}
         label="Rewards Left"
@@ -49,9 +49,11 @@ export default function VaultStats({ vaultData, isMobile }) {
             {formatNumber(data.rewardsRemaining, 0)} CORE
             <div
               style={{
-                fontSize: 11,
+                fontSize: "13px",           // Slightly smaller
                 color: "#ffb37a",
-                marginTop: 6,
+                marginTop: 8,
+                lineHeight: "1.3",
+                wordBreak: "break-word",    // Prevent overflow
               }}
             >
               Next 500 CORE drip in {formatTime(data.nextDripSeconds)}
