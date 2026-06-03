@@ -4,8 +4,8 @@ import cors from "cors";
 import { ethers } from "ethers";
 import vaultRoutes from "./routes/vault.js";
 import { fetchStakeHistory } from "./services/stakeHistoryService.js";
-import stakingABI from "../src/abis/stakingABI.json" assert { type: "json" };
-import dripABI from "../src/abis/dripABI.json" assert { type: "json" };
+import stakingABI from "../src/abis/stakingABI.json" with { type: "json" };
+import dripABI from "../src/abis/dripABI.json" with { type: "json" };
 import { DRIP_FUNDER_ADDRESS } from "./config.js";   // or wherever it's defined
 import { RPC_URL } from "./config.js";            // Your RPC
 

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ethers } from "ethers";
 import { STAKING_ADDRESS, DRIP_FUNDER_ADDRESS } from "../config";
-import stakingABI from "../abis/stakingABI.json" assert { type: "json" };
-import dripABI from "../abis/dripABI.json" assert { type: "json" };
+import stakingABI from "../abis/stakingABI.json" with { type: "json" };
+import dripABI from "../abis/dripABI.json" with { type: "json" };
 
 const fallbackVault = {
   coreStaked: 0,
