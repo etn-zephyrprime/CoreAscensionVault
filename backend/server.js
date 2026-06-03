@@ -39,7 +39,7 @@ async function startHistoryPoller() {
 
   // Initial update
   try {
-    await fetchStakeHistory(stakingContract, dripContract, provider);
+    await fetchStakeHistory(stakingContract, provider);
   } catch (e) {
     console.error("Initial history update failed:", e);
   }
