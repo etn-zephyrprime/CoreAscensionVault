@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
+import { DRIP_FUNDER_ADDRESS } from "../config.js";
 
-const DRIP_ADDRESS = "0x219341313B6142343C3003f3e2CAec96779cf8ED";
+const DRIP_ADDRESS = DRIP_FUNDER_ADDRESS;
 
 const ABI = [
   "function nextDripIn() view returns (uint256)"
