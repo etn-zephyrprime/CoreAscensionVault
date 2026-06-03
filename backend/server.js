@@ -4,7 +4,9 @@ import cors from "cors";
 import { ethers } from "ethers";
 import vaultRoutes from "./routes/vault.js";
 import { fetchStakeHistory } from "./services/stakeHistoryService.js";
-import stakingABI from "../src/abis/stakingABI.json" with { type: "json" };
+import stakingABI from "./abis/stakingABI.json" assert { type: "json" };
+import dripABI from "./abis/dripABI.json" assert { type: "json" };
+import { DRIP_FUNDER_ADDRESS } from "./config.js";   // or wherever it's defined
 import { RPC_URL } from "./config.js";            // Your RPC
 
 const app = express();
@@ -31,20 +33,28 @@ async function startHistoryPoller() {
   console.log("🚀 Starting Stake History Poller (every 1 hour)");
 
   const provider = new ethers.JsonRpcProvider(RPC_URL);
+
   const stakingContract = new ethers.Contract(
-    "0x3764280F654d780d75463304f1ade8017d6e1cFD", // STAKING_ADDRESS
+    "0x3764280F654d780d75463304f1ade8017d6e1cFD",
     stakingABI,
+    provider
+  );
+
+  const dripContract = new ethers.Contract(
+    DRIP_FUNDER_ADDRESS,   // Make sure this is imported/defined
+    dripABI,
     provider
   );
 
   // Initial update
   try {
-    await fetchStakeHistory(stakingContract, provider);
+    await fetchStakeHistory(stakingContract, dripContract, provider);
+    console.log("✅ Initial history update completed");
   } catch (e) {
-    console.error("Initial history update failed:", e);
+    console.error("❌ Initial history update failed:", e.message);
   }
 
-  // Poll every hour (3600000 ms)
+  // Poll every hour
   setInterval(async () => {
     if (isUpdating) {
       console.log("⏳ History update already in progress...");
@@ -55,10 +65,10 @@ async function startHistoryPoller() {
     console.log(`\n⏰ [${new Date().toISOString()}] Running hourly history update...`);
 
     try {
-      await fetchStakeHistory(stakingContract, provider);
+      await fetchStakeHistory(stakingContract, dripContract, provider);
       console.log("✅ Hourly history update completed successfully");
     } catch (error) {
-      console.error("❌ Hourly history update failed:", error);
+      console.error("❌ Hourly history update failed:", error.message);
     } finally {
       isUpdating = false;
     }
