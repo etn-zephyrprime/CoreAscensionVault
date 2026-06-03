@@ -33,14 +33,8 @@ export function useVaultData(provider, account) {
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
       const drip = new ethers.Contract(DRIP_FUNDER_ADDRESS, dripABI, provider);
 
-      // === Global Data with Safe Calls ===
-      const [
-        totalCoreStakedRaw,
-        rewardsRemainingRaw,
-        totalCoreBurnedRaw,
-        rewardPerBlockRaw,
-        nextDripSecondsRaw,
-      ] = await Promise.all([
+      // === Global Calls (Safe) ===
+      const globalData = await Promise.all([
         staking.totalCoreStaked(),
         staking.rewardsRemainingBySchedule(),
         staking.totalCoreBurned(),
@@ -48,16 +42,26 @@ export function useVaultData(provider, account) {
         drip.nextDripIn(),
       ]);
 
+      const [
+        totalCoreStakedRaw,
+        rewardsRemainingRaw,
+        totalCoreBurnedRaw,
+        rewardPerBlockRaw,
+        nextDripSecondsRaw,
+      ] = globalData;
+
+      // === Safe blocksRemaining Call ===
       let blocksRemainingRaw = 0;
       try {
         blocksRemainingRaw = await staking.blocksRemaining();
       } catch (err) {
-        console.warn("⚠️ blocksRemaining() reverted - using fallback", err.message);
-        // Optional: Try alternative
+        console.warn("⚠️ blocksRemaining() reverted → using estimatedSecondsRemaining");
         try {
-          const estimatedSeconds = await staking.estimatedSecondsRemaining();
-          blocksRemainingRaw = Math.floor(Number(estimatedSeconds) / 5); // rough conversion
-        } catch (_) {}
+          const estSeconds = await staking.estimatedSecondsRemaining();
+          blocksRemainingRaw = Math.floor(Number(estSeconds) / 5); // ~5s per block
+        } catch (_) {
+          console.warn("Both timing methods failed");
+        }
       }
 
       const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
@@ -65,10 +69,9 @@ export function useVaultData(provider, account) {
       const rewardPerBlock = Number(ethers.formatEther(rewardPerBlockRaw));
       const nextDripSeconds = Number(nextDripSecondsRaw);
 
-      const currentApr =
-        totalCoreStaked > 0
-          ? ((rewardPerBlock * 6_307_200) / totalCoreStaked) * 100
-          : 0;
+      const currentApr = totalCoreStaked > 0
+        ? ((rewardPerBlock * 6_307_200) / totalCoreStaked) * 100
+        : 0;
 
       const daysRemaining = Math.floor((Number(blocksRemainingRaw) * 5) / 86400);
 
@@ -82,17 +85,18 @@ export function useVaultData(provider, account) {
         nextDripSeconds,
       };
 
-      // === User Data ===
+      // === User Data (Safe) ===
       if (account) {
         try {
           const user = await staking.getUser(account);
+          const minStakeTime = await staking.MIN_STAKE_TIME();
 
           const entryTime = Number(user[3]);
           const now = Math.floor(Date.now() / 1000);
-          const minStakeTime = Number(await staking.MIN_STAKE_TIME()); // Better to read from contract
 
-          const penaltySecondsRemaining =
-            entryTime > 0 ? Math.max(0, entryTime + minStakeTime - now) : 0;
+          const penaltySecondsRemaining = entryTime > 0
+            ? Math.max(0, entryTime + Number(minStakeTime) - now)
+            : 0;
 
           const penaltyDaysRemaining = Math.ceil(penaltySecondsRemaining / 86400);
 
@@ -110,18 +114,18 @@ export function useVaultData(provider, account) {
               : 0,
           };
         } catch (userErr) {
-          console.warn("User data fetch failed:", userErr.message);
+          console.warn("⚠️ Failed to load user data:", userErr.message);
         }
       }
 
-      // === Stake History ===
+      // === History ===
       const history = await fetchStakeHistory();
       nextVaultData.stakeHistory = history || [];
 
       setVaultData(nextVaultData);
-      console.log("✅ Vault data loaded");
+      console.log("✅ Vault data loaded successfully");
     } catch (err) {
-      console.error("❌ loadVaultData failed:", err);
+      console.error("❌ Critical loadVaultData error:", err);
     } finally {
       setLoading(false);
     }
@@ -129,25 +133,21 @@ export function useVaultData(provider, account) {
 
   useEffect(() => {
     loadVaultData();
-    const interval = setInterval(loadVaultData, 45000);
+    const interval = setInterval(loadVaultData, 45 * 1000);
     return () => clearInterval(interval);
   }, [loadVaultData]);
 
-  return {
-    vaultData,
-    reloadVaultData: loadVaultData,
-    loading,
-  };
+  return { vaultData, reloadVaultData: loadVaultData, loading };
 }
 
 async function fetchStakeHistory() {
   try {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error("Failed");
     const data = await res.json();
     return data.history || [];
-  } catch (err) {
-    console.warn("History fetch failed:", err);
+  } catch (e) {
+    console.warn("History fetch failed");
     return [];
   }
 }
