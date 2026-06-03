@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
-const DRIP_ADDRESS = "YOUR_DRIP_CONTRACT";
+const DRIP_ADDRESS = "0x3764280F654d780d75463304f1ade8017d6e1cFD";
 
 const ABI = [
   "function nextDripIn() view returns (uint256)"
