@@ -37,23 +37,23 @@ export function useVaultData(provider, account) {
       const [totalCoreStakedRaw, rewardsRemainingRaw, totalCoreBurnedRaw, rewardPerBlockRaw, nextDripSecondsRaw] =
         await Promise.all([
           staking.totalCoreStaked(),
-          staking.rewardsRemainingBySchedule(),
+          staking.rewardsRemainingBySchedule(),   // This exists
           staking.totalCoreBurned(),
           staking.rewardPerBlock(),
           drip.nextDripIn(),
         ]);
 
-      // === BLOCKS REMAINING (with robust fallback) ===
+      // === BLOCKS REMAINING ===
       let blocksRemainingRaw = 0;
       try {
         blocksRemainingRaw = await staking.blocksRemaining();
       } catch (err) {
-        console.warn("blocksRemaining() failed, using estimatedSecondsRemaining");
+        console.warn("blocksRemaining() failed → using estimatedSecondsRemaining");
         try {
           const estSeconds = await staking.estimatedSecondsRemaining();
           blocksRemainingRaw = Math.floor(Number(estSeconds) / 5);
-        } catch (fallbackErr) {
-          console.warn("Could not get timing data");
+        } catch (e) {
+          console.warn("Could not fetch timing data");
         }
       }
 
@@ -62,9 +62,8 @@ export function useVaultData(provider, account) {
       const rewardPerBlock = Number(ethers.formatEther(rewardPerBlockRaw));
       const nextDripSeconds = Number(nextDripSecondsRaw);
 
-      // APR Calculation (annualized)
-      const currentApr = totalCoreStaked > 0 
-        ? ((rewardPerBlock * 6_307_200) / totalCoreStaked) * 100 
+      const currentApr = totalCoreStaked > 0
+        ? ((rewardPerBlock * 6_307_200) / totalCoreStaked) * 100
         : 0;
 
       const daysRemaining = Math.floor((Number(blocksRemainingRaw) * 5) / 86400);
@@ -93,8 +92,8 @@ export function useVaultData(provider, account) {
           const boostBps = Number(user[6]);
 
           const now = Math.floor(Date.now() / 1000);
-          const penaltySeconds = entryTime > 0 
-            ? Math.max(0, entryTime + Number(minStakeTime) - now) 
+          const penaltySeconds = entryTime > 0
+            ? Math.max(0, entryTime + Number(minStakeTime) - now)
             : 0;
 
           nextVaultData = {
@@ -103,12 +102,12 @@ export function useVaultData(provider, account) {
             nftCount,
             earnedCore: pendingRewards,
             earlyExit: currentlyEarly,
-            boost: boostBps / 10_000,
+            boost: boostBps / 10000,
             penaltyDaysRemaining: Math.ceil(penaltySeconds / 86400),
             userShare: totalCoreStaked > 0 ? (coreStaked / totalCoreStaked) * 100 : 0,
           };
         } catch (userErr) {
-          console.warn("User data fetch failed:", userErr.message);
+          console.warn("User data failed:", userErr.message);
         }
       }
 
@@ -127,7 +126,7 @@ export function useVaultData(provider, account) {
 
   useEffect(() => {
     loadVaultData();
-    const interval = setInterval(loadVaultData, 45000); // every 45 seconds
+    const interval = setInterval(loadVaultData, 45000);
     return () => clearInterval(interval);
   }, [loadVaultData]);
 
