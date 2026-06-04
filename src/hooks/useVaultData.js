@@ -34,45 +34,36 @@ export function useVaultData(provider, account) {
       const drip = new ethers.Contract(DRIP_FUNDER_ADDRESS, dripABI, provider);
 
       // === GLOBAL DATA ===
-      const [totalCoreStakedRaw, totalCoreBurnedRaw, rewardPerBlockRaw, nextDripSecondsRaw] =
+      const [totalCoreStakedRaw, totalCoreBurnedRaw, rewardPerBlockRaw, nextDripSecondsRaw, endBlockRaw] =
         await Promise.all([
           staking.totalCoreStaked(),
           staking.totalCoreBurned(),
           staking.rewardPerBlock(),
           drip.nextDripIn(),
+          staking.endBlock().catch(() => 0),
         ]);
 
-      // Rewards Remaining - with fallback
-      let rewardsRemainingRaw = 0;
-      try {
-        rewardsRemainingRaw = await staking.rewardsRemainingBySchedule();
-      } catch (e) {
-        console.warn("rewardsRemainingBySchedule not found, using 0");
-      }
-
-      // Blocks Remaining
-      let blocksRemainingRaw = 0;
-      try {
-        blocksRemainingRaw = await staking.blocksRemaining();
-      } catch (err) {
-        try {
-          const estSeconds = await staking.estimatedSecondsRemaining();
-          blocksRemainingRaw = Math.floor(Number(estSeconds) / 5);
-        } catch (e) {
-          console.warn("Timing data unavailable");
-        }
-      }
-
       const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
-      const rewardsRemaining = Number(ethers.formatEther(rewardsRemainingRaw));
       const rewardPerBlock = Number(ethers.formatEther(rewardPerBlockRaw));
       const nextDripSeconds = Number(nextDripSecondsRaw);
+
+      // Calculate rewards remaining using endBlock
+      let rewardsRemaining = 0;
+      try {
+        const currentBlock = await provider.getBlockNumber();
+        if (currentBlock < Number(endBlockRaw)) {
+          const blocksLeft = Number(endBlockRaw) - currentBlock;
+          rewardsRemaining = Number(ethers.formatEther(blocksLeft * rewardPerBlockRaw));
+        }
+      } catch (e) {
+        console.warn("Could not calculate rewards remaining");
+      }
 
       const currentApr = totalCoreStaked > 0
         ? ((rewardPerBlock * 6_307_200) / totalCoreStaked) * 100
         : 0;
 
-      const daysRemaining = Math.floor((Number(blocksRemainingRaw) * 5) / 86400);
+      const daysRemaining = Math.floor((Number(endBlockRaw || 0) * 5) / 86400); // rough estimate
 
       let nextVaultData = {
         ...fallbackVault,
@@ -121,6 +112,7 @@ export function useVaultData(provider, account) {
       nextVaultData.stakeHistory = history || [];
 
       setVaultData(nextVaultData);
+      console.log("✅ Vault data loaded successfully");
     } catch (err) {
       console.error("❌ Critical loadVaultData error:", err);
     } finally {
@@ -130,7 +122,7 @@ export function useVaultData(provider, account) {
 
   useEffect(() => {
     loadVaultData();
-    const interval = setInterval(loadVaultData, 45000);
+    const interval = setInterval(loadVaultData, 60000); // every 60s
     return () => clearInterval(interval);
   }, [loadVaultData]);
 
