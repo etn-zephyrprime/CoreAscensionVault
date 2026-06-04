@@ -35,7 +35,7 @@ async function startHistoryPoller() {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
 
   const stakingContract = new ethers.Contract(
-    "0x3764280F654d780d75463304f1ade8017d6e1cFD",
+    "0x200A9b5Fe78d4cB5232a3A0C52B510F961C51Cd6",
     stakingABI,
     provider
   );
