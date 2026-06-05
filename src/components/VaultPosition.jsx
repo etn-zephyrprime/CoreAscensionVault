@@ -148,6 +148,7 @@ export default function VaultPosition({
 
   // ====================== ACTIONS ======================
   async function approveCore() {
+    // ... (unchanged)
     try {
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
@@ -165,6 +166,7 @@ export default function VaultPosition({
   }
 
   async function stakeCore() {
+    // ... (unchanged)
     try {
       if (Number(vaultData?.nftCount || 0) <= 0) return alert("Stake at least 1 NFT first.");
       if (parsedStakeAmount <= 0n) return alert("Enter amount.");
@@ -190,15 +192,15 @@ export default function VaultPosition({
     try {
       if (Number(vaultData?.earnedCore || 0) <= 0) return alert("No rewards available.");
 
-      let warning = "Claim CORE rewards?";
-      
+      let warning = "Claim CORE rewards now?";
+
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(0n);
         if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (50% slash on rewards)\n\n` +
-            `Before slash : ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
-            `Slash amount : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
-            `You will get : ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nContinue?`;
+          warning = `⚠️ 50% REWARD PENALTY ACTIVE\n\n` +
+            `Before: ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
+            `Slash : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
+            `After : ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nProceed?`;
         }
       }
 
@@ -225,15 +227,15 @@ export default function VaultPosition({
       if (parsedWithdrawAmount <= 0n) return alert("Enter amount to withdraw.");
 
       let warning = `Withdraw ${withdrawAmount} CORE?`;
-      
+
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(parsedWithdrawAmount);
         if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (15% on CORE)\n\n` +
-            `Requested     : ${withdrawAmount} CORE\n` +
-            `You will get  : ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
-            `To Pool       : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
-            `Burned        : ${Number(preview.penaltyBurned).toFixed(4)} CORE\n\nContinue?`;
+          warning = `⚠️ 15% EARLY WITHDRAWAL PENALTY ACTIVE\n\n` +
+            `Requested : ${withdrawAmount} CORE\n` +
+            `Received  : ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
+            `To Pool   : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
+            `Burned    : ${Number(preview.penaltyBurned).toFixed(4)} CORE\n\nProceed?`;
         }
       }
 
@@ -259,16 +261,16 @@ export default function VaultPosition({
 
   async function exitVault() {
     try {
-      let warning = "Exit the vault completely?";
-      
+      let warning = "Exit the entire vault?";
+
       if (data.earlyExit) {
         const fullAmount = ethers.parseEther(String(vaultData?.coreStaked || 0));
         const preview = await previewEarlyPenalty(fullAmount);
         if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTY ACTIVE\n\n` +
+          warning = `⚠️ EARLY EXIT PENALTIES ACTIVE\n\n` +
             `CORE returned : ${Number(preview.returnedAmount).toFixed(4)}\n` +
             `To Pool       : ${Number(preview.penaltyToPool).toFixed(4)}\n` +
-            `Rewards after slash : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nContinue?`;
+            `Rewards after slash : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nProceed?`;
         }
       }
 
@@ -360,7 +362,7 @@ export default function VaultPosition({
         </div>
       </div>
 
-      {/* Buttons */}
+{/* Buttons */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12 }}>
         <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: 1 }}>
           {txLoading ? "Processing..." : needsApproval ? "Approve CORE" : "Stake CORE"}
