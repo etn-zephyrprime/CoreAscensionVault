@@ -74,11 +74,6 @@ export default function VaultPosition({
 
   const data = vaultData || {};
 
-  // Debug log
-  useEffect(() => {
-    console.log("VaultPosition received data:", data);
-  }, [data]);
-
   const boostLabel = useMemo(() => `${(data.boost || 1).toFixed(2)}x`, [data.boost]);
 
   const hasPosition = Number(data.coreStaked || 0) > 0 || Number(data.nftCount || 0) > 0;
@@ -129,7 +124,7 @@ export default function VaultPosition({
     loadCoreApprovalData();
   }, [wallet.provider, wallet.account]);
 
-  // ====================== PENALTY PREVIEW ======================
+  // ====================== SAFE PENALTY PREVIEW ======================
   async function previewEarlyPenalty(amountWei = 0n) {
     if (!wallet.provider || !wallet.account) return null;
 
@@ -187,13 +182,15 @@ export default function VaultPosition({
       await wallet.ensureCorrectNetwork();
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-      const tx = await staking.stakeCore(parsedStakeAmount);
+
+      const tx = await staking.stakeCore(parsedStakeAmount, { gasLimit: 350000 });
       await tx.wait();
 
-      await reloadVaultData();   // ← Critical
+      await reloadVaultData();
       await loadCoreApprovalData();
       alert("✅ CORE staked successfully!");
     } catch (err) {
+      console.error(err);
       alert(err?.shortMessage || err?.reason || "Stake failed");
     } finally {
       setTxLoading(false);
@@ -220,14 +217,18 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
+
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-      await (await staking.claim()).wait();
+
+      const tx = await staking.claim({ gasLimit: 300000 });
+      await tx.wait();
 
       await reloadVaultData();
       alert("✅ Rewards claimed successfully!");
     } catch (err) {
-      alert(err?.shortMessage || err?.reason || "Claim failed");
+      console.error("Claim error:", err);
+      alert(err?.shortMessage || err?.reason || err?.message || "Claim failed");
     } finally {
       setTxLoading(false);
     }
@@ -253,16 +254,20 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
+
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-      await (await staking.withdrawCore(parsedWithdrawAmount)).wait();
+
+      const tx = await staking.withdrawCore(parsedWithdrawAmount, { gasLimit: 400000 });
+      await tx.wait();
 
       await reloadVaultData();
       await loadCoreApprovalData();
       setWithdrawAmount("");
       alert("✅ CORE withdrawn successfully.");
     } catch (err) {
-      alert(err?.shortMessage || err?.reason || "Withdraw failed");
+      console.error("Withdraw error:", err);
+      alert(err?.shortMessage || err?.reason || err?.message || "Withdraw failed");
     } finally {
       setTxLoading(false);
     }
@@ -286,15 +291,19 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
+
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-      await (await staking.exit()).wait();
+
+      const tx = await staking.exit({ gasLimit: 500000 });
+      await tx.wait();
 
       await reloadVaultData();
       await loadCoreApprovalData();
       alert("✅ Exited vault successfully.");
     } catch (err) {
-      alert(err?.shortMessage || err?.reason || "Exit failed");
+      console.error("Exit error:", err);
+      alert(err?.shortMessage || err?.reason || err?.message || "Exit failed");
     } finally {
       setTxLoading(false);
     }
@@ -304,6 +313,7 @@ export default function VaultPosition({
 
   return (
     <Panel style={{ background: panel2 }}>
+      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
         <h2 style={{ fontSize: isMobile ? 20 : 24, color: green, margin: 0, textTransform: "uppercase", textShadow: `0 0 8px ${greenGlow}` }}>
           Your Vault Position
@@ -313,6 +323,7 @@ export default function VaultPosition({
         </div>
       </div>
 
+      {/* Mini Stats */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>CORE Staked</div>
@@ -343,7 +354,7 @@ export default function VaultPosition({
         )}
       </div>
 
-      {/* Sliders with presets (restored) */}
+      {/* Sliders + Presets (unchanged) */}
       {/* Stake Section */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Stake CORE</label>
@@ -368,7 +379,7 @@ export default function VaultPosition({
         </div>
       </div>
 
-{/* Buttons */}
+      {/* Buttons */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12 }}>
         <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: 1 }}>
           {txLoading ? "Processing..." : needsApproval ? "Approve CORE" : "Stake CORE"}
