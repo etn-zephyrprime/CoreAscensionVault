@@ -42,10 +42,6 @@ async function saveHistory(data) {
   console.log(`[StakeHistory] Saved ${payload.history?.length || 0} entries`);
 }
 
-const rewardsRemaining =
-  Number(ethers.formatEther(totalRewardsFunded)) -
-  Number(ethers.formatEther(totalRewardsPaid));
-
 // ===================== DATE KEY (FIXED) =====================
 
 function getDayKey(timestamp) {
@@ -53,16 +49,13 @@ function getDayKey(timestamp) {
   return d.toISOString().split("T")[0];
 }
 
-export function formatChartDate(isoDate) {
-  if (!isoDate) return "";
-
   const d = new Date(isoDate);
 
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
   });
-}
+
 // ===================== MAIN INDEXER =====================
 
 export async function fetchStakeHistory(
@@ -183,13 +176,17 @@ export async function fetchStakeHistory(
     }
 
     try {
-const [totalStakedRaw, totalFundedRaw, totalPaidRaw, rewardPerBlockRaw] =
-  await Promise.all([
-    stakingContract.totalCoreStaked(),
-    stakingContract.totalRewardsFunded(),
-    stakingContract.totalRewardsPaid(),
-    stakingContract.rewardPerBlock(),
-  ]);
+const [
+  totalStakedRaw,
+  totalFundedRaw,
+  totalPaidRaw,
+  rewardPerBlockRaw
+] = await Promise.all([
+  stakingContract.totalCoreStaked(),
+  stakingContract.totalRewardsFunded(),
+  stakingContract.totalRewardsPaid(),
+  stakingContract.rewardPerBlock(),
+]);
 
 const totalStaked = Number(ethers.formatEther(totalStakedRaw));
 const totalFunded = Number(ethers.formatEther(totalFundedRaw));
@@ -198,14 +195,12 @@ const rpb = Number(ethers.formatEther(rewardPerBlockRaw));
 
 const rewardsRemaining = Math.max(0, totalFunded - totalPaid);
 
-      const totalStaked = Number(ethers.formatEther(totalStakedRaw));
-      const rpb = Number(ethers.formatEther(rewardPerBlockRaw));
+const blocksPerYear = 6307200;
 
-      const blocksPerYear = 6307200;
-
-      today.coreStaked = totalStaked;
-      today.currentApr =
-        totalStaked > 0 ? ((rpb * blocksPerYear) / totalStaked) * 100 : 0;
+today.coreStaked = totalStaked;
+today.rewardsRemaining = rewardsRemaining;
+today.currentApr =
+  totalStaked > 0 ? ((rpb * blocksPerYear) / totalStaked) * 100 : 0;
     } catch (e) {
       console.warn("[StakeHistory] metrics failed:", e.message);
     }
