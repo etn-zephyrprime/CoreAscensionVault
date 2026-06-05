@@ -124,28 +124,6 @@ export default function VaultPosition({
     loadCoreApprovalData();
   }, [wallet.provider, wallet.account]);
 
-  // ====================== PENALTY PREVIEW ======================
-  async function previewEarlyPenalty(amountWei = 0n) {
-    if (!wallet.provider || !wallet.account) return null;
-    const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
-    try {
-      const corePenalty = await staking.pendingEarlyCorePenalty(wallet.account, amountWei);
-      const rewardSlash = await staking.pendingEarlyRewardSlash(wallet.account);
-
-      return {
-        returnedAmount: ethers.formatEther(corePenalty[3]),
-        penaltyToPool: ethers.formatEther(corePenalty[1]),
-        penaltyBurned: ethers.formatEther(corePenalty[2]),
-        rewardBeforeSlash: ethers.formatEther(rewardSlash[0]),
-        slashAmount: ethers.formatEther(rewardSlash[1]),
-        rewardAfterSlash: ethers.formatEther(rewardSlash[2]),
-      };
-    } catch (err) {
-      console.warn("Preview failed:", err.message);
-      return null;
-    }
-  }
-
   // ====================== ACTIONS ======================
   async function approveCore() {
     // ... (unchanged)
@@ -188,29 +166,57 @@ export default function VaultPosition({
     }
   }
 
+  // ====================== SAFE PENALTY PREVIEW ======================
+  async function previewEarlyPenalty(amountWei = 0n) {
+    if (!wallet.provider || !wallet.account) return null;
+
+    const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
+
+    try {
+      const [corePenalty, rewardSlash] = await Promise.allSettled([
+        staking.pendingEarlyCorePenalty(wallet.account, amountWei),
+        staking.pendingEarlyRewardSlash(wallet.account)
+      ]);
+
+      const cp = corePenalty.status === "fulfilled" ? corePenalty.value : null;
+      const rs = rewardSlash.status === "fulfilled" ? rewardSlash.value : null;
+
+      if (!cp && !rs) return null;
+
+      return {
+        returnedAmount: cp ? ethers.formatEther(cp[3]) : "0",
+        penaltyToPool: cp ? ethers.formatEther(cp[1]) : "0",
+        penaltyBurned: cp ? ethers.formatEther(cp[2]) : "0",
+        rewardBeforeSlash: rs ? ethers.formatEther(rs[0]) : "0",
+        slashAmount: rs ? ethers.formatEther(rs[1]) : "0",
+        rewardAfterSlash: rs ? ethers.formatEther(rs[2]) : "0",
+      };
+    } catch (err) {
+      console.warn("Preview failed silently:", err.message);
+      return null;
+    }
+  }
+
   // ====================== ACTIONS ======================
   async function claimRewards() {
     try {
       if (Number(vaultData?.earnedCore || 0) <= 0) {
-        return alert("No rewards available to claim.");
+        return alert("No rewards available.");
       }
 
       let warning = "Claim CORE rewards?";
 
-      // Always show penalty preview if in early exit window
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(0n);
-        if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (50% REWARD SLASH)\n\n` +
-            `Reward before slash : ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
-            `Penalty (50%)       : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
-            `You will receive    : ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\n` +
-            `Do you want to continue?`;
+        if (preview && Number(preview.slashAmount) > 0) {
+          warning = `⚠️ 50% REWARD PENALTY ACTIVE\n\n` +
+            `Before: ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
+            `Slash : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
+            `You get: ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nContinue?`;
         }
       }
 
-      const confirmed = window.confirm(warning);
-      if (!confirmed) return;
+      if (!window.confirm(warning)) return;
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
@@ -238,18 +244,15 @@ export default function VaultPosition({
 
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(parsedWithdrawAmount);
-        if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (15% on CORE)\n\n` +
-            `Requested withdraw : ${withdrawAmount} CORE\n` +
-            `You will receive   : ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
-            `Penalty to pool    : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
-            `Penalty burned     : ${Number(preview.penaltyBurned).toFixed(4)} CORE\n\n` +
-            `Continue with penalty?`;
+        if (preview && Number(preview.penaltyToPool) > 0) {
+          warning = `⚠️ 15% EARLY WITHDRAWAL PENALTY\n\n` +
+            `Requested : ${withdrawAmount} CORE\n` +
+            `You receive: ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
+            `To pool   : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n\nContinue?`;
         }
       }
 
-      const confirmed = window.confirm(warning);
-      if (!confirmed) return;
+      if (!window.confirm(warning)) return;
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
@@ -273,22 +276,19 @@ export default function VaultPosition({
 
   async function exitVault() {
     try {
-      let warning = "Exit the vault completely?\nThis will withdraw all CORE, claim rewards, and return all NFTs.";
+      let warning = "Exit the vault completely?";
 
       if (data.earlyExit) {
         const fullAmount = ethers.parseEther(String(vaultData?.coreStaked || 0));
         const preview = await previewEarlyPenalty(fullAmount);
         if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTY ACTIVE\n\n` +
-            `CORE you will receive : ${Number(preview.returnedAmount).toFixed(4)}\n` +
-            `Penalty to pool       : ${Number(preview.penaltyToPool).toFixed(4)}\n` +
-            `Rewards after slash   : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\n` +
-            `Continue?`;
+          warning = `⚠️ EARLY EXIT PENALTIES ACTIVE\n\n` +
+            `CORE received : ${Number(preview.returnedAmount).toFixed(4)}\n` +
+            `Rewards after slash : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nContinue?`;
         }
       }
 
-      const confirmed = window.confirm(warning);
-      if (!confirmed) return;
+      if (!window.confirm(warning)) return;
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
@@ -308,7 +308,7 @@ export default function VaultPosition({
       setTxLoading(false);
     }
   }
-    
+      
   const maxStakeable = Math.max(0, Math.min(Number(coreBalance || 0), 10000 - Number(vaultData?.coreStaked || 0)));
 
   return (
