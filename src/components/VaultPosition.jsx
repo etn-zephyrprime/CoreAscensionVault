@@ -140,7 +140,7 @@ export default function VaultPosition({
     loadCoreApprovalData();
   }, [wallet.provider, wallet.account]);
 
-  // ====================== PREVIEW FUNCTIONS ======================
+  // ====================== PREVIEW ======================
   async function previewEarlyPenalty(amountWei) {
     if (!wallet.provider || !wallet.account) return null;
 
@@ -165,13 +165,10 @@ export default function VaultPosition({
     }
   }
 
-  // ====================== ACTION FUNCTIONS ======================
+  // ====================== ACTIONS ======================
   async function approveCore() {
     try {
-      if (!wallet.account) {
-        alert("Connect wallet first");
-        return;
-      }
+      if (!wallet.account) return alert("Connect wallet first");
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
@@ -185,7 +182,6 @@ export default function VaultPosition({
       await loadCoreApprovalData();
       alert("CORE approved.");
     } catch (err) {
-      console.error("Approve failed:", err);
       alert(err?.shortMessage || err?.reason || "Approve failed");
     } finally {
       setTxLoading(false);
@@ -194,18 +190,10 @@ export default function VaultPosition({
 
   async function stakeCore() {
     try {
-      if (!wallet.account) {
-        alert("Connect wallet first");
-        return;
-      }
       if (Number(vaultData?.nftCount || 0) <= 0) {
-        alert("Stake at least 1 eligible NFT before staking CORE.");
-        return;
+        return alert("Stake at least 1 eligible NFT before staking CORE.");
       }
-      if (parsedStakeAmount <= 0n) {
-        alert("Enter a valid CORE amount.");
-        return;
-      }
+      if (parsedStakeAmount <= 0n) return alert("Enter a valid amount.");
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
@@ -220,8 +208,7 @@ export default function VaultPosition({
       await loadCoreApprovalData();
       alert("CORE staked successfully.");
     } catch (err) {
-      console.error("Stake CORE failed:", err);
-      alert(err?.shortMessage || err?.reason || "Stake CORE failed");
+      alert(err?.shortMessage || err?.reason || "Stake failed");
     } finally {
       setTxLoading(false);
     }
@@ -229,24 +216,11 @@ export default function VaultPosition({
 
   async function claimRewards() {
     try {
-      if (!wallet.account) {
-        alert("Connect wallet first");
-        return;
-      }
       if (Number(vaultData?.earnedCore || 0) <= 0) {
-        alert("You do not have any claimable CORE rewards yet.");
-        return;
+        return alert("No rewards to claim.");
       }
 
-      let warning = "Claim CORE rewards?";
-      if (data.earlyExit) {
-        const preview = await previewEarlyPenalty(0n);
-        if (preview) {
-          warning = `Early exit penalty active.\n\nReward slash: ~50%\nContinue?`;
-        }
-      }
-
-      const confirmed = window.confirm(warning);
+      const confirmed = window.confirm("Claim rewards?");
       if (!confirmed) return;
 
       setTxLoading(true);
@@ -261,7 +235,6 @@ export default function VaultPosition({
       await reloadVaultData();
       alert("Rewards claimed successfully.");
     } catch (err) {
-      console.error("Claim failed:", err);
       alert(err?.shortMessage || err?.reason || "Claim failed");
     } finally {
       setTxLoading(false);
@@ -270,21 +243,12 @@ export default function VaultPosition({
 
   async function withdrawCore() {
     try {
-      if (parsedWithdrawAmount <= 0n) {
-        alert("Enter a valid CORE amount to withdraw.");
-        return;
-      }
-      if (Number(vaultData?.coreStaked || 0) <= 0) {
-        alert("You do not have any CORE staked.");
-        return;
-      }
+      if (parsedWithdrawAmount <= 0n) return alert("Enter amount to withdraw.");
 
       let warning = "Withdraw CORE?";
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(parsedWithdrawAmount);
-        if (preview) {
-          warning = `Early penalty active.\nReturned: ~${Number(preview.returnedAmount).toFixed(2)} CORE\nContinue?`;
-        }
+        if (preview) warning = `Early penalty active. Continue?`;
       }
 
       const confirmed = window.confirm(warning);
@@ -304,7 +268,6 @@ export default function VaultPosition({
       setWithdrawAmount("");
       alert("CORE withdrawn successfully.");
     } catch (err) {
-      console.error("Withdraw failed:", err);
       alert(err?.shortMessage || err?.reason || "Withdraw failed");
     } finally {
       setTxLoading(false);
@@ -313,21 +276,7 @@ export default function VaultPosition({
 
   async function exitVault() {
     try {
-      if (!wallet.account) {
-        alert("Connect wallet first");
-        return;
-      }
-
-      let warning = "Exit the vault? This will withdraw all CORE, claim rewards, and return all NFTs.";
-      if (data.earlyExit) {
-        const fullAmount = ethers.parseEther(String(vaultData?.coreStaked || 0));
-        const preview = await previewEarlyPenalty(fullAmount);
-        if (preview) {
-          warning = `Early penalty active.\nContinue with penalties?`;
-        }
-      }
-
-      const confirmed = window.confirm(warning);
+      const confirmed = window.confirm("Exit vault completely?");
       if (!confirmed) return;
 
       setTxLoading(true);
@@ -343,7 +292,6 @@ export default function VaultPosition({
       await loadCoreApprovalData();
       alert("Exited vault successfully.");
     } catch (err) {
-      console.error("Exit failed:", err);
       alert(err?.shortMessage || err?.reason || "Exit failed");
     } finally {
       setTxLoading(false);
@@ -360,111 +308,127 @@ export default function VaultPosition({
 
   return (
     <Panel style={{ background: panel2 }}>
-      {/* All your existing UI stays exactly the same */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
-        <h2
-          style={{
-            fontSize: isMobile ? 20 : 24,
-            color: green,
-            margin: 0,
-            textTransform: "uppercase",
-            textShadow: `0 0 8px ${greenGlow}`,
-          }}
-        >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        <h2 style={{ fontSize: isMobile ? 20 : 24, color: green, margin: 0, textTransform: "uppercase", textShadow: `0 0 8px ${greenGlow}` }}>
           Your Vault Position
         </h2>
-
-        <div
-          style={{
-            padding: "8px 12px",
-            borderRadius: 999,
-            border: "1px solid #6b4a00",
-            background: "#1a1200",
-            color: "#ffcc66",
-            fontSize: 13,
-            fontWeight: 900,
-          }}
-        >
+        <div style={{ padding: "8px 12px", borderRadius: 999, border: "1px solid #6b4a00", background: "#1a1200", color: "#ffcc66", fontSize: 13, fontWeight: 900 }}>
           Boost {boostLabel}
         </div>
       </div>
 
-      {/* Rest of your JSX remains unchanged */}
-      {/* ... (mini metrics, penalty info, sliders, buttons, etc.) ... */}
+      {/* Mini Metrics */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 12 }}>
+        <div style={miniMetricStyle()}>
+          <div style={miniLabelStyle()}>CORE Staked</div>
+          <div style={miniValueStyle("#fff")}>{formatNumber(data.coreStaked, 2)}</div>
+          <div style={miniSubStyle()}>Max 10,000 CORE</div>
+        </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: isMobile ? 8 : 12,
-          justifyContent: isMobile ? "center" : "flex-start",
-        }}
-      >
-        <NeonButton
-          variant="blue"
-          onClick={needsApproval ? approveCore : stakeCore}
-          disabled={
-            txLoading ||
-            !wallet.account ||
-            parsedStakeAmount <= 0n ||
-            Number(vaultData?.nftCount || 0) <= 0
-          }
-          style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}
-        >
-          {txLoading
-            ? "Processing..."
-            : needsApproval
-            ? "Approve CORE"
-            : "Stake CORE"}
+        <div style={miniMetricStyle()}>
+          <div style={miniLabelStyle()}>Earned CORE</div>
+          <div style={miniValueStyle(green)}>{formatNumber(data.earnedCore, 4)}</div>
+          <div style={miniSubStyle()}>Claimable rewards</div>
+        </div>
+
+        <div style={miniMetricStyle()}>
+          <div style={miniLabelStyle()}>Pool Share</div>
+          <div style={miniValueStyle("#ffcc66")}>{formatNumber(data.userShare, 2)}%</div>
+          <div style={miniSubStyle()}>Boost-adjusted</div>
+        </div>
+      </div>
+
+      {/* Penalty Info */}
+      <div style={{ border: "1px solid #6b4a00", borderRadius: 8, background: "#1a1200", marginBottom: 16, overflow: "hidden" }}>
+        <div onClick={() => setShowPenaltyInfo((v) => !v)} style={{ padding: "9px 10px", fontSize: isMobile ? 12 : 13, color: "#ffcc66", fontWeight: 900, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span><AlertTriangle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} /> Early Exit {earlyExitTitle}</span>
+          <span style={{ opacity: 0.7 }}>{showPenaltyInfo ? "▲" : "▼"}</span>
+        </div>
+        {showPenaltyInfo && (
+          <div style={{ padding: "8px 10px", fontSize: isMobile ? 11 : 12, color: "#ffcc66", lineHeight: 1.45, borderTop: "1px solid #6b4a00" }}>
+            {!hasPosition ? (
+              "Stake CORE and eligible NFTs to start a vault position."
+            ) : data.earlyExit ? (
+              `${penaltyDaysRemaining} day${penaltyDaysRemaining === 1 ? "" : "s"} remaining in penalty window.`
+            ) : (
+              "No early exit penalty active."
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* === STAKE SLIDER === */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase" }}>Stake CORE</label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          disabled={maxStakeable <= 0}
+          value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0}
+          onChange={(e) => {
+            const pct = Number(e.target.value);
+            const amount = (maxStakeable * pct) / 100;
+            setStakeAmount(amount > 0 ? amount.toFixed(4) : "");
+          }}
+          style={{ width: "100%", accentColor: "#18bb1a" }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginTop: -4 }}>
+          <span>0%</span><span>100%</span>
+        </div>
+
+        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: "12px 14px", textAlign: "center", marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "#777", marginBottom: 4 }}>Stake Amount</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#18bb1a" }}>
+            {Number(stakeAmount || 0).toLocaleString()} CORE
+          </div>
+        </div>
+      </div>
+
+      {/* === WITHDRAW SLIDER === */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase" }}>Withdraw CORE</label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={Number(vaultData?.coreStaked || 0) > 0 ? Math.round((Number(withdrawAmount || 0) / Number(vaultData.coreStaked)) * 100) : 0}
+          onChange={(e) => {
+            const pct = Number(e.target.value);
+            const amount = (Number(vaultData?.coreStaked || 0) * pct) / 100;
+            setWithdrawAmount(amount > 0 ? amount.toFixed(4) : "");
+          }}
+          style={{ width: "100%", accentColor: "#ff4d4d" }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginTop: -4 }}>
+          <span>0%</span><span>100%</span>
+        </div>
+
+        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: "12px 14px", textAlign: "center", marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "#777", marginBottom: 4 }}>Withdrawal Amount</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#ff4d4d" }}>
+            {Number(withdrawAmount || 0).toLocaleString()} CORE
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12, justifyContent: isMobile ? "center" : "flex-start" }}>
+        <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
+          {txLoading ? "Processing..." : needsApproval ? "Approve CORE" : "Stake CORE"}
         </NeonButton>
 
-        <NeonButton
-          variant="green"
-          onClick={claimRewards}
-          disabled={
-            !wallet.account ||
-            Number(vaultData?.coreStaked || 0) <= 0 ||
-            Number(vaultData?.earnedCore || 0) <= 0
-          }
-          style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}
-        >
+        <NeonButton variant="green" onClick={claimRewards} disabled={!wallet.account || Number(vaultData?.earnedCore || 0) <= 0} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
           Claim Rewards
         </NeonButton>
 
-        <NeonButton
-          variant="dark"
-          onClick={withdrawCore}
-          disabled={
-            txLoading ||
-            !wallet.account ||
-            parsedWithdrawAmount <= 0n ||
-            Number(vaultData?.coreStaked || 0) <= 0
-          }
-          style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}
-        >
+        <NeonButton variant="dark" onClick={withdrawCore} disabled={txLoading || !wallet.account || parsedWithdrawAmount <= 0n || Number(vaultData?.coreStaked || 0) <= 0} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
           {txLoading ? "Processing..." : "Withdraw CORE"}
         </NeonButton>
 
-        <NeonButton
-          variant="danger"
-          onClick={exitVault}
-          disabled={
-            txLoading ||
-            !wallet.account ||
-            (Number(vaultData?.coreStaked || 0) <= 0 &&
-             Number(vaultData?.nftCount || 0) <= 0)
-          }
-          style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}
-        >
+        <NeonButton variant="danger" onClick={exitVault} disabled={txLoading || !wallet.account || (Number(vaultData?.coreStaked || 0) <= 0 && Number(vaultData?.nftCount || 0) <= 0)} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
           {txLoading ? "Processing..." : "Exit Vault"}
         </NeonButton>
       </div>
