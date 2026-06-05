@@ -129,12 +129,12 @@ export async function fetchStakeHistory(
     }
 
     // ================= PROCESS EVENTS =================
-    const newDaily = await processEvents(
-      coreEvents,
-      nftEvents,
-      nftWithdrawEvents,
-      provider
-    );
+const { daily: newDaily, userNFTMap } = await processEvents(
+  coreEvents,
+  nftEvents,
+  nftWithdrawEvents,
+  provider
+);
 
     // ================= MERGE HISTORY =================
     const historyMap = new Map();
@@ -157,6 +157,19 @@ export async function fetchStakeHistory(
     }
 
     let updatedHistory = Array.from(historyMap.values());
+
+    const activeUserNFTs = {};
+
+for (const [user, events] of Object.entries(userNFTMap || {})) {
+  const map = new Map();
+
+  for (const nft of events) {
+    const key = `${nft.nftAddress.toLowerCase()}-${nft.tokenId}`;
+    map.set(key, nft);
+  }
+
+  activeUserNFTs[user] = Array.from(map.values());
+}
 
     // ================= TODAY METRICS =================
     const todayKey = getDayKey(Math.floor(Date.now() / 1000));
@@ -300,20 +313,10 @@ for (const e of nftWithdrawEvents || []) {
     );
   }
 }
-  return daily;
-}
-
-const activeUserNFTs = {};
-
-for (const [user, events] of Object.entries(userNFTMap)) {
-  const map = new Map();
-
-  for (const nft of events) {
-    const key = `${nft.nftAddress.toLowerCase()}-${nft.tokenId}`;
-    map.set(key, nft);
-  }
-
-  activeUserNFTs[user] = Array.from(map.values());
+return {
+  daily,
+  userNFTMap,
+};
 }
 
 // ===================== FORCE EXPORT =====================
