@@ -12,6 +12,22 @@ import EVGABI from "../abis/EVGABI.json";
 import { useOwnedNfts } from "../hooks/useOwnedNfts.js";
 import { getNftImageSrc } from "../utils/nftImages.js";
 
+const STAKES_FILE = path.join(__dirname, "../data/current-stakes.json");
+
+async function loadStakes() {
+  try {
+    const raw = await fs.readFile(STAKES_FILE, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+async function saveStakes(data) {
+  await ensureDataDir();
+  await fs.writeFile(STAKES_FILE, JSON.stringify(data, null, 2));
+}
+
 export default function NftHangar({
   vaultData,
   wallet,
@@ -176,9 +192,9 @@ async function loadStakedNfts() {
     }
   }
 
-  useEffect(() => {
-    loadStakedNfts();
-  }, [wallet.provider, wallet.account, vaultData?.nftCount, mapping]);
+useEffect(() => {
+  loadStakedNfts();
+}, [wallet.provider, wallet.account, mapping]);
 
   return (
     <Panel style={{ background: panel2 }}>
