@@ -151,17 +151,10 @@ async function previewEarlyPenalty(amountWei = 0n) {
       slashAmount: ethers.formatEther(cp[0]),
     };
 
-try {
-  const result = await staking.pendingEarlyCorePenalty(
-    wallet.account,
-    amountWei
-  );
-  console.log(result);
-
-} catch(e) {
-  console.log("FULL ERROR");
-  console.log(e);
-  console.log(e.data);
+  } catch (err) {
+    console.error("Penalty preview reverted:", err);
+    return null;
+  }
 }
 
 useEffect(() => {
