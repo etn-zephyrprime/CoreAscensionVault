@@ -124,7 +124,7 @@ export default function VaultPosition({
     loadCoreApprovalData();
   }, [wallet.provider, wallet.account]);
 
-  // Preview for early penalties
+  // ====================== PREVIEW ======================
   async function previewEarlyPenalty(amountWei) {
     if (!wallet.provider || !wallet.account) return null;
     const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
@@ -175,9 +175,9 @@ export default function VaultPosition({
       const tx = await staking.stakeCore(parsedStakeAmount);
       await tx.wait();
 
-      await reloadVaultData();
+      await reloadVaultData();        // ← Important
       await loadCoreApprovalData();
-      alert("CORE staked successfully.");
+      alert("CORE staked successfully!");
     } catch (err) {
       alert(err?.shortMessage || err?.reason || "Stake failed");
     } finally {
