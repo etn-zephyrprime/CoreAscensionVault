@@ -16,6 +16,7 @@ const STAKES_FILE = path.join(__dirname, "../data/current-stakes.json");
 
 async function ensureDataDir() {
   await fs.mkdir(path.dirname(HISTORY_FILE), { recursive: true }).catch(() => {});
+  await fs.mkdir(path.dirname(STAKES_FILE), { recursive: true }).catch(() => {});
 }
 
 async function loadHistory() {
@@ -44,10 +45,6 @@ async function saveHistory(data) {
   );
 }
 
-async function ensureDataDir() {
-  await fs.mkdir(path.dirname(HISTORY_FILE), { recursive: true }).catch(() => {});
-}
-
 async function loadStakes() {
   try {
     const raw = await fs.readFile(STAKES_FILE, "utf8");
@@ -59,7 +56,10 @@ async function loadStakes() {
 
 async function saveStakes(data) {
   await ensureDataDir();
-  await fs.writeFile(STAKES_FILE, JSON.stringify(data, null, 2));
+  await fs.writeFile(
+    STAKES_FILE,
+    JSON.stringify(data, null, 2)
+  );
 }
 
 // ================= DATE =================
@@ -241,7 +241,7 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider) {
   }
 
   // 👇 SAVE LIVE STATE
-  await saveStakes(activeUserNFTs);
+await saveStakes(structuredClone(activeUserNFTs));
 
   return { daily, activeUserNFTs };
 }
