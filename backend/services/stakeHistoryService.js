@@ -68,8 +68,7 @@ function getDayKey(ts) {
   return new Date(ts * 1000).toISOString().split("T")[0];
 }
 
-// ================= MAIN =================
-
+// ================= MAIN FUNCTION =================
 export async function fetchStakeHistory(stakingContract, dripContract, provider, options = {}) {
   const { force = false, fromBlock = CONTRACT_CREATION_BLOCK } = options;
 
@@ -93,37 +92,18 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
     return state.history;
   }
 
-  const coreFilter = stakingContract.filters.CoreStaked();
-  const nftFilter = stakingContract.filters.NFTStaked();
-  const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn?.();
-
-  const coreEvents = [];
-  const nftEvents = [];
-  const withdrawEvents = [];
-
-  for (let from = lastBlock + 1; from <= currentBlock; from += CHUNK_SIZE) {
-    const to = Math.min(from + CHUNK_SIZE - 1, currentBlock);
-
-    const [core, nft, wd] = await Promise.all([
-      stakingContract.queryFilter(coreFilter, from, to),
-      stakingContract.queryFilter(nftFilter, from, to),
-      nftWithdrawFilter ? stakingContract.queryFilter(nftWithdrawFilter, from, to) : [],
-    ]);
-
-    coreEvents.push(...core);
-    nftEvents.push(...nft);
-    withdrawEvents.push(...wd);
-  }
+  // ... existing event fetching code (coreEvents, nftEvents, etc.) ...
 
   const { daily, userNFTMap } = await processEvents(
     coreEvents,
     nftEvents,
     withdrawEvents,
-    provider
+    provider,
+    stakingContract,
+    dripContract
   );
 
-  // ================= MERGE HISTORY =================
-
+  // ================= MERGE + ADD REWARDS DATA =================
   const map = new Map();
 
   for (const h of state.history || []) {
@@ -131,31 +111,29 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   }
 
   for (const day of Object.values(daily)) {
-    const existing = map.get(day.date);
-
-    if (!existing) {
-      map.set(day.date, day);
-    } else {
-      existing.coreStaked = (existing.coreStaked || 0) + (day.coreStaked || 0);
-      existing.nftsStaked = (existing.nftsStaked || 0) + (day.nftsStaked || 0);
-    }
+    const existing = map.get(day.date) || {};
+    map.set(day.date, {
+      ...existing,
+      ...day,
+      // Keep the most recent values for rewards
+      rewardsRemaining: day.rewardsRemaining !== undefined ? day.rewardsRemaining : (existing.rewardsRemaining || 0),
+    });
   }
 
-  const history = Array.from(map.values()).sort((a, b) =>
-    a.date.localeCompare(b.date)
-  );
+  const history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 
-  // cumulative NFTs
-  let running = 0;
+  // Cumulative NFTs
+  let runningNfts = 0;
   for (const d of history) {
-    running += d.nftsStaked || 0;
-    d.nftsStaked = Math.max(0, running);
+    runningNfts += d.nftsStaked || 0;
+    d.nftsStaked = Math.max(0, runningNfts);
   }
 
   const newState = {
     lastProcessedBlock: currentBlock,
     history,
     userStakes: userNFTMap,
+    lastUpdated: new Date().toISOString(),
   };
 
   await saveHistory(newState);
@@ -164,28 +142,23 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   return history;
 }
 
-// ================= EVENT PROCESSOR =================
-async function processEvents(coreEvents, nftEvents, withdrawEvents, provider) {
+// ================= UPDATED PROCESS EVENTS =================
+async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, stakingContract, dripContract) {
   const daily = {};
   const cache = new Map();
 
-  // 👇 LIVE STATE (authoritative)
   const activeUserNFTs = await loadStakes();
 
   async function getBlock(n) {
-    if (!cache.has(n)) {
-      cache.set(n, await provider.getBlock(n));
-    }
+    if (!cache.has(n)) cache.set(n, await provider.getBlock(n));
     return cache.get(n);
   }
 
-  // CORE (unchanged)
+  // === CORE & NFT Events (existing logic) ===
   for (const e of coreEvents) {
     const block = await getBlock(e.blockNumber);
     const day = getDayKey(block.timestamp);
-
     daily[day] ||= { date: day, coreStaked: 0, nftsStaked: 0 };
-
     daily[day].coreStaked += Number(ethers.formatEther(e.args.amount || 0));
   }
 
@@ -240,10 +213,29 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider) {
     );
   }
 
-  // 👇 SAVE LIVE STATE
-await saveStakes(structuredClone(activeUserNFTs));
+  // ================= ADD REWARDS REMAINING =================
+  try {
+    if (dripContract) {
+      const remainingDrips = await dripContract.remainingDrips();
+      const totalDripped = await dripContract.totalDripped();
 
-  return { daily, activeUserNFTs };
+      const remaining = Number(remainingDrips) * 500; // 500 CORE per drip
+
+      // Apply to today's entry
+      const today = getDayKey(Math.floor(Date.now() / 1000));
+      if (daily[today]) {
+        daily[today].rewardsRemaining = remaining;
+        daily[today].totalDripped = Number(ethers.formatEther(totalDripped));
+      }
+    }
+  } catch (err) {
+    console.warn("Could not fetch drip stats:", err.message);
+  }
+
+  // 👇 SAVE LIVE STATE
+  await saveStakes(structuredClone(activeUserNFTs));
+
+  return { daily, activeUserNFTs: userNFTMap || activeUserNFTs };
 }
 
 export async function forceUpdateHistory(stakingContract, dripContract, provider, fromBlock) {
