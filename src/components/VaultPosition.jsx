@@ -8,7 +8,6 @@ import {
   greenGlow,
   panel,
   panel2,
-  border,
   muted,
 } from "../styles/theme.js";
 
@@ -75,21 +74,14 @@ export default function VaultPosition({
 
   const data = vaultData || {};
 
-  const boostLabel = useMemo(
-    () => `${(data.boost || 1).toFixed(2)}x`,
-    [data.boost]
-  );
+  const boostLabel = useMemo(() => `${(data.boost || 1).toFixed(2)}x`, [data.boost]);
 
-  const hasPosition =
-    Number(data.coreStaked || 0) > 0 || Number(data.nftCount || 0) > 0;
-
+  const hasPosition = Number(data.coreStaked || 0) > 0 || Number(data.nftCount || 0) > 0;
   const penaltyDaysRemaining = Number(data.penaltyDaysRemaining || 0);
 
   const earlyExitTitle = !hasPosition
     ? "No Position"
-    : data.earlyExit
-    ? "Active"
-    : "Protected";
+    : data.earlyExit ? "Active" : "Protected";
 
   const [coreAllowance, setCoreAllowance] = useState(0);
   const [coreBalance, setCoreBalance] = useState(0);
@@ -97,8 +89,7 @@ export default function VaultPosition({
 
   const parsedStakeAmount = useMemo(() => {
     try {
-      if (!stakeAmount || Number(stakeAmount) <= 0) return 0n;
-      return ethers.parseEther(stakeAmount);
+      return stakeAmount && Number(stakeAmount) > 0 ? ethers.parseEther(stakeAmount) : 0n;
     } catch {
       return 0n;
     }
@@ -106,29 +97,22 @@ export default function VaultPosition({
 
   const parsedWithdrawAmount = useMemo(() => {
     try {
-      if (!withdrawAmount || Number(withdrawAmount) <= 0) return 0n;
-      return ethers.parseEther(withdrawAmount);
+      return withdrawAmount && Number(withdrawAmount) > 0 ? ethers.parseEther(withdrawAmount) : 0n;
     } catch {
       return 0n;
     }
   }, [withdrawAmount]);
 
-  const needsApproval =
-    wallet.account &&
-    parsedStakeAmount > 0n &&
-    ethers.parseEther(String(coreAllowance || 0)) < parsedStakeAmount;
+  const needsApproval = wallet.account && parsedStakeAmount > 0n && ethers.parseEther(String(coreAllowance || 0)) < parsedStakeAmount;
 
   async function loadCoreApprovalData() {
     try {
       if (!wallet.provider || !wallet.account) return;
-
       const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, wallet.provider);
-
       const [allowance, balance] = await Promise.all([
         core.allowance(wallet.account, STAKING_ADDRESS),
         core.balanceOf(wallet.account),
       ]);
-
       setCoreAllowance(Number(ethers.formatEther(allowance)));
       setCoreBalance(Number(ethers.formatEther(balance)));
     } catch (err) {
@@ -140,27 +124,23 @@ export default function VaultPosition({
     loadCoreApprovalData();
   }, [wallet.provider, wallet.account]);
 
-  // ====================== PREVIEW ======================
+  // Preview for early penalties
   async function previewEarlyPenalty(amountWei) {
     if (!wallet.provider || !wallet.account) return null;
-
     const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
-
     try {
       const corePenalty = await staking.pendingEarlyCorePenalty(wallet.account, amountWei);
       const rewardSlash = await staking.pendingEarlyRewardSlash(wallet.account);
-
       return {
-        totalPenalty: ethers.formatEther(corePenalty[0]),
+        returnedAmount: ethers.formatEther(corePenalty[3]),
         penaltyToPool: ethers.formatEther(corePenalty[1]),
         penaltyBurned: ethers.formatEther(corePenalty[2]),
-        returnedAmount: ethers.formatEther(corePenalty[3]),
         rewardBeforeSlash: ethers.formatEther(rewardSlash[0]),
         slashAmount: ethers.formatEther(rewardSlash[1]),
         rewardAfterSlash: ethers.formatEther(rewardSlash[2]),
       };
     } catch (err) {
-      console.warn("Preview penalty failed:", err.message);
+      console.warn("Preview failed:", err.message);
       return null;
     }
   }
@@ -168,17 +148,12 @@ export default function VaultPosition({
   // ====================== ACTIONS ======================
   async function approveCore() {
     try {
-      if (!wallet.account) return alert("Connect wallet first");
-
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, signer);
-
       const tx = await core.approve(STAKING_ADDRESS, parsedStakeAmount);
       await tx.wait();
-
       await loadCoreApprovalData();
       alert("CORE approved.");
     } catch (err) {
@@ -190,17 +165,13 @@ export default function VaultPosition({
 
   async function stakeCore() {
     try {
-      if (Number(vaultData?.nftCount || 0) <= 0) {
-        return alert("Stake at least 1 eligible NFT before staking CORE.");
-      }
-      if (parsedStakeAmount <= 0n) return alert("Enter a valid amount.");
+      if (Number(vaultData?.nftCount || 0) <= 0) return alert("Stake at least 1 NFT first.");
+      if (parsedStakeAmount <= 0n) return alert("Enter amount.");
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
       const tx = await staking.stakeCore(parsedStakeAmount);
       await tx.wait();
 
@@ -216,24 +187,16 @@ export default function VaultPosition({
 
   async function claimRewards() {
     try {
-      if (Number(vaultData?.earnedCore || 0) <= 0) {
-        return alert("No rewards to claim.");
-      }
-
-      const confirmed = window.confirm("Claim rewards?");
-      if (!confirmed) return;
+      if (Number(vaultData?.earnedCore || 0) <= 0) return alert("No rewards available.");
+      if (!window.confirm("Claim rewards?")) return;
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
-      const tx = await staking.claim();
-      await tx.wait();
-
+      await (await staking.claim()).wait();
       await reloadVaultData();
-      alert("Rewards claimed successfully.");
+      alert("Rewards claimed!");
     } catch (err) {
       alert(err?.shortMessage || err?.reason || "Claim failed");
     } finally {
@@ -243,30 +206,21 @@ export default function VaultPosition({
 
   async function withdrawCore() {
     try {
-      if (parsedWithdrawAmount <= 0n) return alert("Enter amount to withdraw.");
-
+      if (parsedWithdrawAmount <= 0n) return alert("Enter amount.");
       let warning = "Withdraw CORE?";
-      if (data.earlyExit) {
-        const preview = await previewEarlyPenalty(parsedWithdrawAmount);
-        if (preview) warning = `Early penalty active. Continue?`;
-      }
-
-      const confirmed = window.confirm(warning);
-      if (!confirmed) return;
+      if (data.earlyExit) warning = "Early penalty active. Continue?";
+      if (!window.confirm(warning)) return;
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
-      const tx = await staking.withdrawCore(parsedWithdrawAmount);
-      await tx.wait();
+      await (await staking.withdrawCore(parsedWithdrawAmount)).wait();
 
       await reloadVaultData();
       await loadCoreApprovalData();
       setWithdrawAmount("");
-      alert("CORE withdrawn successfully.");
+      alert("Withdrawn successfully.");
     } catch (err) {
       alert(err?.shortMessage || err?.reason || "Withdraw failed");
     } finally {
@@ -276,21 +230,15 @@ export default function VaultPosition({
 
   async function exitVault() {
     try {
-      const confirmed = window.confirm("Exit vault completely?");
-      if (!confirmed) return;
-
+      if (!window.confirm("Exit vault completely?")) return;
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
-      const tx = await staking.exit();
-      await tx.wait();
-
+      await (await staking.exit()).wait();
       await reloadVaultData();
       await loadCoreApprovalData();
-      alert("Exited vault successfully.");
+      alert("Exited successfully.");
     } catch (err) {
       alert(err?.shortMessage || err?.reason || "Exit failed");
     } finally {
@@ -298,13 +246,7 @@ export default function VaultPosition({
     }
   }
 
-  const maxStakeable = Math.max(
-    0,
-    Math.min(
-      Number(coreBalance || 0),
-      10000 - Number(vaultData?.coreStaked || 0)
-    )
-  );
+  const maxStakeable = Math.max(0, Math.min(Number(coreBalance || 0), 10000 - Number(vaultData?.coreStaked || 0)));
 
   return (
     <Panel style={{ background: panel2 }}>
@@ -317,97 +259,70 @@ export default function VaultPosition({
         </div>
       </div>
 
-      {/* Mini Metrics */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 12 }}>
+      {/* Mini Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>CORE Staked</div>
           <div style={miniValueStyle("#fff")}>{formatNumber(data.coreStaked, 2)}</div>
-          <div style={miniSubStyle()}>Max 10,000 CORE</div>
         </div>
-
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>Earned CORE</div>
           <div style={miniValueStyle(green)}>{formatNumber(data.earnedCore, 4)}</div>
-          <div style={miniSubStyle()}>Claimable rewards</div>
         </div>
-
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>Pool Share</div>
           <div style={miniValueStyle("#ffcc66")}>{formatNumber(data.userShare, 2)}%</div>
-          <div style={miniSubStyle()}>Boost-adjusted</div>
         </div>
       </div>
 
-      {/* Penalty Info */}
-      <div style={{ border: "1px solid #6b4a00", borderRadius: 8, background: "#1a1200", marginBottom: 16, overflow: "hidden" }}>
-        <div onClick={() => setShowPenaltyInfo((v) => !v)} style={{ padding: "9px 10px", fontSize: isMobile ? 12 : 13, color: "#ffcc66", fontWeight: 900, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span><AlertTriangle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} /> Early Exit {earlyExitTitle}</span>
-          <span style={{ opacity: 0.7 }}>{showPenaltyInfo ? "▲" : "▼"}</span>
-        </div>
-        {showPenaltyInfo && (
-          <div style={{ padding: "8px 10px", fontSize: isMobile ? 11 : 12, color: "#ffcc66", lineHeight: 1.45, borderTop: "1px solid #6b4a00" }}>
-            {!hasPosition ? (
-              "Stake CORE and eligible NFTs to start a vault position."
-            ) : data.earlyExit ? (
-              `${penaltyDaysRemaining} day${penaltyDaysRemaining === 1 ? "" : "s"} remaining in penalty window.`
-            ) : (
-              "No early exit penalty active."
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* === STAKE SLIDER === */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase" }}>Stake CORE</label>
+      {/* Stake Section */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Stake CORE</label>
+        
         <input
           type="range"
-          min="0"
-          max="100"
-          step="1"
-          disabled={maxStakeable <= 0}
+          min="0" max="100" step="1"
           value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0}
-          onChange={(e) => {
-            const pct = Number(e.target.value);
-            const amount = (maxStakeable * pct) / 100;
-            setStakeAmount(amount > 0 ? amount.toFixed(4) : "");
-          }}
+          onChange={(e) => setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))}
           style={{ width: "100%", accentColor: "#18bb1a" }}
         />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginTop: -4 }}>
-          <span>0%</span><span>100%</span>
+
+        <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
+          {[25, 50, 75, 100].map(p => (
+            <button key={p} onClick={() => setStakeAmount(((maxStakeable * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>
+              {p}%
+            </button>
+          ))}
         </div>
 
-        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: "12px 14px", textAlign: "center", marginTop: 8 }}>
-          <div style={{ fontSize: 11, color: "#777", marginBottom: 4 }}>Stake Amount</div>
+        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 12, textAlign: "center" }}>
           <div style={{ fontSize: 24, fontWeight: 900, color: "#18bb1a" }}>
             {Number(stakeAmount || 0).toLocaleString()} CORE
           </div>
         </div>
       </div>
 
-      {/* === WITHDRAW SLIDER === */}
+      {/* Withdraw Section */}
       <div style={{ marginBottom: 20 }}>
-        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase" }}>Withdraw CORE</label>
+        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Withdraw CORE</label>
+        
         <input
           type="range"
-          min="0"
-          max="100"
-          step="1"
+          min="0" max="100" step="1"
           value={Number(vaultData?.coreStaked || 0) > 0 ? Math.round((Number(withdrawAmount || 0) / Number(vaultData.coreStaked)) * 100) : 0}
-          onChange={(e) => {
-            const pct = Number(e.target.value);
-            const amount = (Number(vaultData?.coreStaked || 0) * pct) / 100;
-            setWithdrawAmount(amount > 0 ? amount.toFixed(4) : "");
-          }}
+          onChange={(e) => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * Number(e.target.value)) / 100).toFixed(4))}
           style={{ width: "100%", accentColor: "#ff4d4d" }}
         />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginTop: -4 }}>
-          <span>0%</span><span>100%</span>
+
+        <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
+          {[25, 50, 75, 100].map(p => (
+            <button key={p} onClick={() => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>
+              {p}%
+            </button>
+          ))}
         </div>
 
-        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: "12px 14px", textAlign: "center", marginTop: 8 }}>
-          <div style={{ fontSize: 11, color: "#777", marginBottom: 4 }}>Withdrawal Amount</div>
+        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 12, textAlign: "center" }}>
           <div style={{ fontSize: 24, fontWeight: 900, color: "#ff4d4d" }}>
             {Number(withdrawAmount || 0).toLocaleString()} CORE
           </div>
@@ -415,21 +330,21 @@ export default function VaultPosition({
       </div>
 
       {/* Action Buttons */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12, justifyContent: isMobile ? "center" : "flex-start" }}>
-        <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12 }}>
+        <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: 1 }}>
           {txLoading ? "Processing..." : needsApproval ? "Approve CORE" : "Stake CORE"}
         </NeonButton>
 
-        <NeonButton variant="green" onClick={claimRewards} disabled={!wallet.account || Number(vaultData?.earnedCore || 0) <= 0} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
+        <NeonButton variant="green" onClick={claimRewards} disabled={!wallet.account || Number(vaultData?.earnedCore || 0) <= 0} style={{ flex: 1 }}>
           Claim Rewards
         </NeonButton>
 
-        <NeonButton variant="dark" onClick={withdrawCore} disabled={txLoading || !wallet.account || parsedWithdrawAmount <= 0n || Number(vaultData?.coreStaked || 0) <= 0} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
-          {txLoading ? "Processing..." : "Withdraw CORE"}
+        <NeonButton variant="dark" onClick={withdrawCore} disabled={txLoading || !wallet.account || parsedWithdrawAmount <= 0n || Number(vaultData?.coreStaked || 0) <= 0} style={{ flex: 1 }}>
+          Withdraw CORE
         </NeonButton>
 
-        <NeonButton variant="danger" onClick={exitVault} disabled={txLoading || !wallet.account || (Number(vaultData?.coreStaked || 0) <= 0 && Number(vaultData?.nftCount || 0) <= 0)} style={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
-          {txLoading ? "Processing..." : "Exit Vault"}
+        <NeonButton variant="danger" onClick={exitVault} disabled={txLoading || !wallet.account || (Number(vaultData?.coreStaked || 0) <= 0 && Number(vaultData?.nftCount || 0) <= 0)} style={{ flex: 1 }}>
+          Exit Vault
         </NeonButton>
       </div>
     </Panel>
