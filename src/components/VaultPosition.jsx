@@ -104,6 +104,41 @@ export default function VaultPosition({
     }
   }, [withdrawAmount]);
 
+function previewPenaltyFromContract({
+  amountWei,
+  earnedWei,
+  isEarly,
+}) {
+  if (!isEarly) {
+    return {
+      returnedAmount: amountWei,
+      penaltyToPool: 0n,
+      penaltyBurned: 0n,
+      slashAmount: 0n,
+      rewardAfterSlash: earnedWei,
+    };
+  }
+
+  // --- CORE withdrawal penalty (15%) ---
+  const stakePenalty = (amountWei * 1500n) / 10000n;
+  const returnedAmount = amountWei - stakePenalty;
+
+  const penaltyToPool = (stakePenalty * 2n) / 3n;
+  const penaltyBurned = stakePenalty - penaltyToPool;
+
+  // --- reward slash (50%) ---
+  const slashAmount = (earnedWei * 5000n) / 10000n;
+  const rewardAfterSlash = earnedWei - slashAmount;
+
+  return {
+    returnedAmount,
+    penaltyToPool,
+    penaltyBurned,
+    slashAmount,
+    rewardAfterSlash,
+  };
+}
+
 const needsApproval =
   wallet.account &&
   parsedStakeAmount > 0n &&
@@ -130,8 +165,6 @@ const needsApproval =
 
   // ====================== SAFE PENALTY PREVIEW ======================
 async function previewEarlyPenalty(amountWei = 0n) {
-  if (!wallet.provider || !wallet.account) return null;
-
   try {
     const staking = new ethers.Contract(
       STAKING_ADDRESS,
@@ -139,20 +172,24 @@ async function previewEarlyPenalty(amountWei = 0n) {
       wallet.provider
     );
 
-    const cp = await staking.pendingEarlyCorePenalty(
-      wallet.account,
-      amountWei
-    );
+    const user = await staking.getUser(wallet.account);
+
+    const result = previewPenaltyFromContract({
+      amountWei,
+      earnedWei: user.pendingRewards,
+      isEarly: user.currentlyEarly,
+    });
 
     return {
-      returnedAmount: ethers.formatEther(cp[3]),
-      penaltyToPool: ethers.formatEther(cp[1]),
-      penaltyBurned: ethers.formatEther(cp[2]),
-      slashAmount: ethers.formatEther(cp[0]),
+      returnedAmount: ethers.formatEther(result.returnedAmount),
+      penaltyToPool: ethers.formatEther(result.penaltyToPool),
+      penaltyBurned: ethers.formatEther(result.penaltyBurned),
+      slashAmount: ethers.formatEther(result.slashAmount),
+      rewardAfterSlash: ethers.formatEther(result.rewardAfterSlash),
     };
 
   } catch (err) {
-    console.error("Penalty preview reverted:", err);
+    console.error("Penalty preview failed:", err);
     return null;
   }
 }
@@ -163,15 +200,15 @@ useEffect(() => {
     return;
   }
 
-  previewEarlyPenalty(
-    ethers.parseEther(String(data.coreStaked || 0))
-  );
+  (async () => {
+    const preview = await previewEarlyPenalty(
+      BigInt(ethers.parseEther(String(data.coreStaked || 0)))
+    );
 
-}, [
-  data.earlyExit,
-  data.coreStaked,
-  wallet.account
-]);
+    setPenaltyPreview(preview);
+  })();
+
+}, [data.earlyExit, data.coreStaked, wallet.account]);
 
   // ====================== ACTIONS ======================
   async function approveCore() {
