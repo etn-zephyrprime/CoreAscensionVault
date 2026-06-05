@@ -4,7 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
-import { formatChartDate } from "./formatChartDate";
+import { formatChartDate } from "./formatChartDate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
