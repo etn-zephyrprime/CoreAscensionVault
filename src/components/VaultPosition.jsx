@@ -78,6 +78,7 @@ export default function VaultPosition({
 
   const hasPosition = Number(data.coreStaked || 0) > 0 || Number(data.nftCount || 0) > 0;
   const penaltyDaysRemaining = Number(data.penaltyDaysRemaining || 0);
+  const [penaltyPreview, setPenaltyPreview] = useState(null);
 
   const earlyExitTitle = !hasPosition
     ? "No Position"
@@ -125,35 +126,68 @@ export default function VaultPosition({
   }, [wallet.provider, wallet.account]);
 
   // ====================== SAFE PENALTY PREVIEW ======================
-  async function previewEarlyPenalty(amountWei = 0n) {
-    if (!wallet.provider || !wallet.account) return null;
+async function previewEarlyPenalty(amountWei = 0n) {
+  if (!wallet.provider || !wallet.account) return null;
 
-    const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
+  const staking = new ethers.Contract(
+    STAKING_ADDRESS,
+    stakingABI,
+    wallet.provider
+  );
 
-    try {
-      const [corePenalty, rewardSlash] = await Promise.allSettled([
-        staking.pendingEarlyCorePenalty(wallet.account, amountWei),
-        staking.pendingEarlyRewardSlash(wallet.account)
-      ]);
+  try {
+    const [corePenalty, rewardSlash] = await Promise.allSettled([
+      staking.pendingEarlyCorePenalty(wallet.account, amountWei),
+      staking.pendingEarlyRewardSlash(wallet.account)
+    ]);
 
-      const cp = corePenalty.status === "fulfilled" ? corePenalty.value : null;
-      const rs = rewardSlash.status === "fulfilled" ? rewardSlash.value : null;
+    const cp =
+      corePenalty.status === "fulfilled"
+        ? corePenalty.value
+        : null;
 
-      if (!cp && !rs) return null;
+    const rs =
+      rewardSlash.status === "fulfilled"
+        ? rewardSlash.value
+        : null;
 
-      return {
-        returnedAmount: cp ? ethers.formatEther(cp[3]) : "0",
-        penaltyToPool: cp ? ethers.formatEther(cp[1]) : "0",
-        penaltyBurned: cp ? ethers.formatEther(cp[2]) : "0",
-        rewardBeforeSlash: rs ? ethers.formatEther(rs[0]) : "0",
-        slashAmount: rs ? ethers.formatEther(rs[1]) : "0",
-        rewardAfterSlash: rs ? ethers.formatEther(rs[2]) : "0",
-      };
-    } catch (err) {
-      console.warn("Preview failed:", err.message);
-      return null;
-    }
+    if (!cp && !rs) return null;
+
+    const preview = {
+      returnedAmount: cp ? ethers.formatEther(cp[3]) : "0",
+      penaltyToPool: cp ? ethers.formatEther(cp[1]) : "0",
+      penaltyBurned: cp ? ethers.formatEther(cp[2]) : "0",
+      rewardBeforeSlash: rs ? ethers.formatEther(rs[0]) : "0",
+      slashAmount: rs ? ethers.formatEther(rs[1]) : "0",
+      rewardAfterSlash: rs ? ethers.formatEther(rs[2]) : "0",
+    };
+
+    setPenaltyPreview(preview);
+
+    return preview;
+
+  } catch (err) {
+    console.warn("Preview failed:", err.message);
+    setPenaltyPreview(null);
+    return null;
   }
+}
+
+useEffect(() => {
+  if (!data.earlyExit || !wallet.account) {
+    setPenaltyPreview(null);
+    return;
+  }
+
+  previewEarlyPenalty(
+    ethers.parseEther(String(data.coreStaked || 0))
+  );
+
+}, [
+  data.earlyExit,
+  data.coreStaked,
+  wallet.account
+]);
 
   // ====================== ACTIONS ======================
   async function approveCore() {
@@ -366,9 +400,43 @@ export default function VaultPosition({
         </div>
         {showPenaltyInfo && (
           <div style={{ padding: "8px 10px", fontSize: 12, color: "#ffcc66" }}>
-            {data.earlyExit 
-              ? `${penaltyDaysRemaining} day(s) left in 60-day penalty window.` 
-              : "No early exit penalty active."}
+{data.earlyExit ? (
+  <>
+    <div>
+      {penaltyDaysRemaining} day(s) left in 60-day penalty window.
+    </div>
+
+    {penaltyPreview && (
+      <div
+        style={{
+          marginTop: 10,
+          padding: 10,
+          background: "#110800",
+          borderRadius: 8,
+          border: "1px solid #8a5a00",
+          color: "#ffcc66",
+        }}
+      >
+        <div>
+          CORE penalty:{" "}
+          {Number(penaltyPreview.penaltyToPool).toFixed(4)}
+        </div>
+
+        <div>
+          Reward slash:{" "}
+          {Number(penaltyPreview.slashAmount).toFixed(4)}
+        </div>
+
+        <div>
+          Rewards received:{" "}
+          {Number(penaltyPreview.rewardAfterSlash).toFixed(4)}
+        </div>
+      </div>
+    )}
+  </>
+) : (
+  "No early exit penalty active."
+)}
           </div>
         )}
       </div>
