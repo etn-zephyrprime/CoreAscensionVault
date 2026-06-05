@@ -50,14 +50,6 @@ export async function forceRefreshHistory(req, res) {
   }
 }
 
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dir = path.dirname(HISTORY_FILE);
-  try {
-    await fs.mkdir(dir, { recursive: true });
-  } catch (e) {}
-}
-
 // Get current history
 router.get("/stake-history", async (req, res) => {
   try {
