@@ -74,6 +74,11 @@ export default function VaultPosition({
 
   const data = vaultData || {};
 
+  // Debug log
+  useEffect(() => {
+    console.log("VaultPosition received data:", data);
+  }, [data]);
+
   const boostLabel = useMemo(() => `${(data.boost || 1).toFixed(2)}x`, [data.boost]);
 
   const hasPosition = Number(data.coreStaked || 0) > 0 || Number(data.nftCount || 0) > 0;
@@ -124,49 +129,7 @@ export default function VaultPosition({
     loadCoreApprovalData();
   }, [wallet.provider, wallet.account]);
 
-  // ====================== ACTIONS ======================
-  async function approveCore() {
-    // ... (unchanged)
-    try {
-      setTxLoading(true);
-      await wallet.ensureCorrectNetwork();
-      const signer = await wallet.getSigner();
-      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, signer);
-      const tx = await core.approve(STAKING_ADDRESS, parsedStakeAmount);
-      await tx.wait();
-      await loadCoreApprovalData();
-      alert("CORE approved.");
-    } catch (err) {
-      alert(err?.shortMessage || err?.reason || "Approve failed");
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  async function stakeCore() {
-    // ... (unchanged)
-    try {
-      if (Number(vaultData?.nftCount || 0) <= 0) return alert("Stake at least 1 NFT first.");
-      if (parsedStakeAmount <= 0n) return alert("Enter amount.");
-
-      setTxLoading(true);
-      await wallet.ensureCorrectNetwork();
-      const signer = await wallet.getSigner();
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-      const tx = await staking.stakeCore(parsedStakeAmount);
-      await tx.wait();
-
-      await reloadVaultData();
-      await loadCoreApprovalData();
-      alert("CORE staked successfully!");
-    } catch (err) {
-      alert(err?.shortMessage || err?.reason || "Stake failed");
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  // ====================== SAFE PENALTY PREVIEW ======================
+  // ====================== PENALTY PREVIEW ======================
   async function previewEarlyPenalty(amountWei = 0n) {
     if (!wallet.provider || !wallet.account) return null;
 
@@ -192,17 +155,54 @@ export default function VaultPosition({
         rewardAfterSlash: rs ? ethers.formatEther(rs[2]) : "0",
       };
     } catch (err) {
-      console.warn("Preview failed silently:", err.message);
+      console.warn("Preview failed:", err.message);
       return null;
     }
   }
 
   // ====================== ACTIONS ======================
+  async function approveCore() {
+    try {
+      setTxLoading(true);
+      await wallet.ensureCorrectNetwork();
+      const signer = await wallet.getSigner();
+      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, signer);
+      const tx = await core.approve(STAKING_ADDRESS, parsedStakeAmount);
+      await tx.wait();
+      await loadCoreApprovalData();
+      alert("CORE approved.");
+    } catch (err) {
+      alert(err?.shortMessage || err?.reason || "Approve failed");
+    } finally {
+      setTxLoading(false);
+    }
+  }
+
+  async function stakeCore() {
+    try {
+      if (Number(vaultData?.nftCount || 0) <= 0) return alert("Stake at least 1 NFT first.");
+      if (parsedStakeAmount <= 0n) return alert("Enter amount.");
+
+      setTxLoading(true);
+      await wallet.ensureCorrectNetwork();
+      const signer = await wallet.getSigner();
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
+      const tx = await staking.stakeCore(parsedStakeAmount);
+      await tx.wait();
+
+      await reloadVaultData();   // ← Critical
+      await loadCoreApprovalData();
+      alert("✅ CORE staked successfully!");
+    } catch (err) {
+      alert(err?.shortMessage || err?.reason || "Stake failed");
+    } finally {
+      setTxLoading(false);
+    }
+  }
+
   async function claimRewards() {
     try {
-      if (Number(vaultData?.earnedCore || 0) <= 0) {
-        return alert("No rewards available.");
-      }
+      if (Number(vaultData?.earnedCore || 0) <= 0) return alert("No rewards available.");
 
       let warning = "Claim CORE rewards?";
 
@@ -220,16 +220,13 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
       await (await staking.claim()).wait();
 
       await reloadVaultData();
       alert("✅ Rewards claimed successfully!");
     } catch (err) {
-      console.error(err);
       alert(err?.shortMessage || err?.reason || "Claim failed");
     } finally {
       setTxLoading(false);
@@ -256,10 +253,8 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
       await (await staking.withdrawCore(parsedWithdrawAmount)).wait();
 
       await reloadVaultData();
@@ -267,7 +262,6 @@ export default function VaultPosition({
       setWithdrawAmount("");
       alert("✅ CORE withdrawn successfully.");
     } catch (err) {
-      console.error(err);
       alert(err?.shortMessage || err?.reason || "Withdraw failed");
     } finally {
       setTxLoading(false);
@@ -292,28 +286,24 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
-
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
       await (await staking.exit()).wait();
 
       await reloadVaultData();
       await loadCoreApprovalData();
       alert("✅ Exited vault successfully.");
     } catch (err) {
-      console.error(err);
       alert(err?.shortMessage || err?.reason || "Exit failed");
     } finally {
       setTxLoading(false);
     }
   }
-      
+
   const maxStakeable = Math.max(0, Math.min(Number(coreBalance || 0), 10000 - Number(vaultData?.coreStaked || 0)));
 
   return (
     <Panel style={{ background: panel2 }}>
-      {/* Header + Mini Stats (kept the same) */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
         <h2 style={{ fontSize: isMobile ? 20 : 24, color: green, margin: 0, textTransform: "uppercase", textShadow: `0 0 8px ${greenGlow}` }}>
           Your Vault Position
