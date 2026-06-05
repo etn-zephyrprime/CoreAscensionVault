@@ -199,7 +199,9 @@ export default function VaultPosition({
 
   async function claimRewards() {
     try {
-      if (Number(vaultData?.earnedCore || 0) <= 0) return alert("No rewards available.");
+      if (Number(vaultData?.earnedCore || 0) <= 0) {
+        return alert("No rewards available.");
+      }
 
       let warning = "Claim CORE rewards?";
 
@@ -213,7 +215,8 @@ export default function VaultPosition({
         }
       }
 
-      if (!window.confirm(warning)) return;
+      const confirmed = window.confirm(warning);
+      if (!confirmed) return;
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
@@ -221,14 +224,30 @@ export default function VaultPosition({
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
 
-      const tx = await staking.claim({ gasLimit: 300000 });
-      await tx.wait();
+      console.log("🔄 Sending claim transaction...");
+
+      const tx = await staking.claim({
+        gasLimit: 500000   // Increased significantly
+      });
+
+      console.log("📤 Claim tx sent:", tx.hash);
+
+      const receipt = await tx.wait();
+      console.log("✅ Claim successful! Block:", receipt.blockNumber);
 
       await reloadVaultData();
       alert("✅ Rewards claimed successfully!");
     } catch (err) {
-      console.error("Claim error:", err);
-      alert(err?.shortMessage || err?.reason || err?.message || "Claim failed");
+      console.error("❌ Claim error full details:", err);
+
+      let userMessage = "Claim failed";
+
+      if (err?.shortMessage) userMessage = err.shortMessage;
+      else if (err?.reason) userMessage = err.reason;
+      else if (err?.data?.message) userMessage = err.data.message;
+      else if (err.message) userMessage = err.message;
+
+      alert(userMessage);
     } finally {
       setTxLoading(false);
     }
@@ -258,7 +277,7 @@ export default function VaultPosition({
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
 
-      const tx = await staking.withdrawCore(parsedWithdrawAmount, { gasLimit: 400000 });
+      const tx = await staking.withdrawCore(parsedWithdrawAmount, { gasLimit: 450000 });
       await tx.wait();
 
       await reloadVaultData();
@@ -295,7 +314,7 @@ export default function VaultPosition({
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
 
-      const tx = await staking.exit({ gasLimit: 500000 });
+      const tx = await staking.exit({ gasLimit: 600000 });
       await tx.wait();
 
       await reloadVaultData();
