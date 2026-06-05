@@ -90,11 +90,24 @@ router.post("/stake-history/update", async (req, res) => {
 router.get("/nfts/staked/:wallet", async (req, res) => {
   try {
     const wallet = req.params.wallet.toLowerCase();
+    await ensureDataDir();
 
-    const data = await fs.readFile(HISTORY_FILE, "utf8");
+    // Try to read from the seeded file
+    let data;
+    try {
+      data = await fs.readFile(STAKES_FILE, "utf8");
+    } catch (e) {
+      // Fallback to history file if stakes file doesn't exist yet
+      data = await fs.readFile(HISTORY_FILE, "utf8");
+    }
+
     const state = JSON.parse(data);
 
-    res.json(state.userStakes?.[wallet] || []);
+    // Support both possible structures
+    const staked = state[wallet] || state.userStakes?.[wallet] || [];
+    console.log(`Staked NFTs for ${wallet}:`, staked);
+
+    res.json(staked);
   } catch (err) {
     console.error("staked nft route failed:", err);
     res.json([]);
