@@ -10,6 +10,8 @@ const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
 const CONTRACT_CREATION_BLOCK = 13853455;
 const CHUNK_SIZE = 250;
 
+const STAKES_FILE = path.join(__dirname, "../data/current-stakes.json");
+
 // ================= FILE HELPERS =================
 
 async function ensureDataDir() {
@@ -40,6 +42,24 @@ async function saveHistory(data) {
       2
     )
   );
+}
+
+async function ensureDataDir() {
+  await fs.mkdir(path.dirname(HISTORY_FILE), { recursive: true }).catch(() => {});
+}
+
+async function loadStakes() {
+  try {
+    const raw = await fs.readFile(STAKES_FILE, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+async function saveStakes(data) {
+  await ensureDataDir();
+  await fs.writeFile(STAKES_FILE, JSON.stringify(data, null, 2));
 }
 
 // ================= DATE =================

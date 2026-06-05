@@ -12,7 +12,7 @@ import EVGABI from "../abis/EVGABI.json";
 import { useOwnedNfts } from "../hooks/useOwnedNfts.js";
 import { getNftImageSrc } from "../utils/nftImages.js";
 
-const STAKES_FILE = path.join(__dirname, "../data/current-stakes.json");
+const STAKES_FILE = `${__dirname}/../data/current-stakes.json`;
 
 async function loadStakes() {
   try {
