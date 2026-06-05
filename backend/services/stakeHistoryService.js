@@ -129,7 +129,11 @@ export async function fetchStakeHistory(
     }
 
     // ================= PROCESS EVENTS =================
-const { daily: newDaily, userNFTMap, activeUserNFTs } = await processEvents(
+const {
+  daily: newDaily,
+  activeUserNFTs,
+  userNFTMap,
+} = await processEvents(
   coreEvents,
   nftEvents,
   nftWithdrawEvents,
@@ -157,6 +161,15 @@ const { daily: newDaily, userNFTMap, activeUserNFTs } = await processEvents(
     }
 
     let updatedHistory = Array.from(historyMap.values());
+
+const newState = {
+  lastProcessedBlock: currentBlock,
+  history: updatedHistory,
+  userStakes: activeUserNFTs,
+};
+
+await saveHistory(newState);
+await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
 
     // ================= TODAY METRICS =================
     const todayKey = getDayKey(Math.floor(Date.now() / 1000));
@@ -222,14 +235,6 @@ async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider)
   const daily = {};
   const cache = new Map();
   const userNFTMap = {};
-  const newState = {
-  lastProcessedBlock: currentBlock,
-  history: updatedHistory,
-  userStakes: activeUserNFTs,
-};
-
-    await saveHistory(newState);
-    await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
 
     console.log(
       `[StakeHistory] ✅ Done | ${updatedHistory.length} entries`
@@ -283,7 +288,6 @@ for (const [user, events] of Object.entries(userNFTMap || {})) {
 
   activeUserNFTs[user] = Array.from(map.values());
 }
-return { daily, activeUserNFTs };
 
 for (const e of nftWithdrawEvents || []) {
   const user = e.args.user.toLowerCase();
@@ -312,6 +316,7 @@ for (const e of nftWithdrawEvents || []) {
 }
 return {
   daily,
+  activeUserNFTs,
   userNFTMap,
 };
 }
