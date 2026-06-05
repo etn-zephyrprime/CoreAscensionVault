@@ -188,19 +188,24 @@ export default function VaultPosition({
     }
   }
 
+  // ====================== ACTIONS ======================
   async function claimRewards() {
     try {
-      if (Number(vaultData?.earnedCore || 0) <= 0) return alert("No rewards available.");
+      if (Number(vaultData?.earnedCore || 0) <= 0) {
+        return alert("No rewards available to claim.");
+      }
 
-      let warning = "Claim CORE rewards now?";
+      let warning = "Claim CORE rewards?";
 
+      // Always show penalty preview if in early exit window
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(0n);
         if (preview) {
-          warning = `⚠️ 50% REWARD PENALTY ACTIVE\n\n` +
-            `Before: ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
-            `Slash : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
-            `After : ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nProceed?`;
+          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (50% REWARD SLASH)\n\n` +
+            `Reward before slash : ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
+            `Penalty (50%)       : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
+            `You will receive    : ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\n` +
+            `Do you want to continue?`;
         }
       }
 
@@ -209,13 +214,16 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
+
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
+
       await (await staking.claim()).wait();
 
       await reloadVaultData();
-      alert("Rewards claimed successfully!");
+      alert("✅ Rewards claimed successfully!");
     } catch (err) {
+      console.error(err);
       alert(err?.shortMessage || err?.reason || "Claim failed");
     } finally {
       setTxLoading(false);
@@ -231,11 +239,12 @@ export default function VaultPosition({
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(parsedWithdrawAmount);
         if (preview) {
-          warning = `⚠️ 15% EARLY WITHDRAWAL PENALTY ACTIVE\n\n` +
-            `Requested : ${withdrawAmount} CORE\n` +
-            `Received  : ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
-            `To Pool   : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
-            `Burned    : ${Number(preview.penaltyBurned).toFixed(4)} CORE\n\nProceed?`;
+          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (15% on CORE)\n\n` +
+            `Requested withdraw : ${withdrawAmount} CORE\n` +
+            `You will receive   : ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
+            `Penalty to pool    : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
+            `Penalty burned     : ${Number(preview.penaltyBurned).toFixed(4)} CORE\n\n` +
+            `Continue with penalty?`;
         }
       }
 
@@ -244,15 +253,18 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
+
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
+
       await (await staking.withdrawCore(parsedWithdrawAmount)).wait();
 
       await reloadVaultData();
       await loadCoreApprovalData();
       setWithdrawAmount("");
-      alert("CORE withdrawn successfully.");
+      alert("✅ CORE withdrawn successfully.");
     } catch (err) {
+      console.error(err);
       alert(err?.shortMessage || err?.reason || "Withdraw failed");
     } finally {
       setTxLoading(false);
@@ -261,16 +273,17 @@ export default function VaultPosition({
 
   async function exitVault() {
     try {
-      let warning = "Exit the entire vault?";
+      let warning = "Exit the vault completely?\nThis will withdraw all CORE, claim rewards, and return all NFTs.";
 
       if (data.earlyExit) {
         const fullAmount = ethers.parseEther(String(vaultData?.coreStaked || 0));
         const preview = await previewEarlyPenalty(fullAmount);
         if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTIES ACTIVE\n\n` +
-            `CORE returned : ${Number(preview.returnedAmount).toFixed(4)}\n` +
-            `To Pool       : ${Number(preview.penaltyToPool).toFixed(4)}\n` +
-            `Rewards after slash : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nProceed?`;
+          warning = `⚠️ EARLY EXIT PENALTY ACTIVE\n\n` +
+            `CORE you will receive : ${Number(preview.returnedAmount).toFixed(4)}\n` +
+            `Penalty to pool       : ${Number(preview.penaltyToPool).toFixed(4)}\n` +
+            `Rewards after slash   : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\n` +
+            `Continue?`;
         }
       }
 
@@ -279,20 +292,23 @@ export default function VaultPosition({
 
       setTxLoading(true);
       await wallet.ensureCorrectNetwork();
+
       const signer = await wallet.getSigner();
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
+
       await (await staking.exit()).wait();
 
       await reloadVaultData();
       await loadCoreApprovalData();
-      alert("Exited vault successfully.");
+      alert("✅ Exited vault successfully.");
     } catch (err) {
+      console.error(err);
       alert(err?.shortMessage || err?.reason || "Exit failed");
     } finally {
       setTxLoading(false);
     }
   }
-  
+    
   const maxStakeable = Math.max(0, Math.min(Number(coreBalance || 0), 10000 - Number(vaultData?.coreStaked || 0)));
 
   return (
