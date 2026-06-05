@@ -99,4 +99,9 @@ router.get("/nfts/staked/:wallet", async (req, res) => {
   }
 });
 
+router.post("/admin/seed-stakes", async (req, res) => {
+  await fs.writeFile(STAKES_FILE, JSON.stringify(req.body, null, 2));
+  res.json({ ok: true });
+});
+
 export default router;
