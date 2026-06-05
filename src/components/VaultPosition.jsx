@@ -190,13 +190,13 @@ export default function VaultPosition({
     try {
       if (Number(vaultData?.earnedCore || 0) <= 0) return alert("No rewards available.");
 
-      let warning = "Claim CORE rewards?";
+      let warning = "Claim rewards?";
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(0n);
         if (preview) {
-          warning = `Early penalty active!\n\n` +
+          warning = `EARLY PENALTY ACTIVE (50% slash on rewards)\n\n` +
             `Reward before slash: ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
-            `Reward slash (50%): ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
+            `Slash amount: ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
             `You will receive: ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nContinue?`;
         }
       }
@@ -227,7 +227,7 @@ export default function VaultPosition({
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(parsedWithdrawAmount);
         if (preview) {
-          warning = `Early penalty active!\n\n` +
+          warning = `EARLY PENALTY ACTIVE (15% on CORE)\n\n` +
             `Requested: ${withdrawAmount} CORE\n` +
             `You will receive: ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
             `Penalty to pool: ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
@@ -257,14 +257,15 @@ export default function VaultPosition({
 
   async function exitVault() {
     try {
-      let warning = "Exit vault completely? This will withdraw all CORE + return all NFTs.";
+      let warning = "Exit vault completely?";
       if (data.earlyExit) {
         const fullAmount = ethers.parseEther(String(vaultData?.coreStaked || 0));
         const preview = await previewEarlyPenalty(fullAmount);
         if (preview) {
-          warning = `Early penalty active!\n\n` +
-            `You will receive: ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
-            `Penalty to pool: ${Number(preview.penaltyToPool).toFixed(4)} CORE\n\nContinue?`;
+          warning = `EARLY PENALTY ACTIVE\n\n` +
+            `CORE returned: ${Number(preview.returnedAmount).toFixed(4)}\n` +
+            `Penalty to pool: ${Number(preview.penaltyToPool).toFixed(4)}\n` +
+            `Rewards after slash: ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nContinue?`;
         }
       }
 
@@ -291,7 +292,7 @@ export default function VaultPosition({
 
   return (
     <Panel style={{ background: panel2 }}>
-      {/* Header */}
+      {/* Header + Mini Stats (kept the same) */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
         <h2 style={{ fontSize: isMobile ? 20 : 24, color: green, margin: 0, textTransform: "uppercase", textShadow: `0 0 8px ${greenGlow}` }}>
           Your Vault Position
@@ -301,7 +302,6 @@ export default function VaultPosition({
         </div>
       </div>
 
-      {/* Mini Stats */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>CORE Staked</div>
@@ -317,76 +317,47 @@ export default function VaultPosition({
         </div>
       </div>
 
-      {/* Penalty Info Box */}
+      {/* Penalty Info */}
       <div style={{ border: "1px solid #6b4a00", borderRadius: 8, background: "#1a1200", marginBottom: 16, overflow: "hidden" }}>
         <div onClick={() => setShowPenaltyInfo(v => !v)} style={{ padding: "9px 10px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#ffcc66", fontWeight: 900 }}>
           <span><AlertTriangle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} /> Early Exit {earlyExitTitle}</span>
           <span>{showPenaltyInfo ? "▲" : "▼"}</span>
         </div>
         {showPenaltyInfo && (
-          <div style={{ padding: "8px 10px", fontSize: 12, color: "#ffcc66", lineHeight: 1.45 }}>
-            {!hasPosition ? "Stake NFTs + CORE to begin." : data.earlyExit ? 
-              `${penaltyDaysRemaining} day(s) left in 60-day penalty window.` : 
-              "No early exit penalty active."}
+          <div style={{ padding: "8px 10px", fontSize: 12, color: "#ffcc66" }}>
+            {data.earlyExit 
+              ? `${penaltyDaysRemaining} day(s) left in 60-day penalty window.` 
+              : "No early exit penalty active."}
           </div>
         )}
       </div>
 
+      {/* Sliders with presets (restored) */}
       {/* Stake Section */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Stake CORE</label>
-        
-        <input
-          type="range"
-          min="0" max="100" step="1"
-          value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0}
-          onChange={(e) => setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))}
-          style={{ width: "100%", accentColor: "#18bb1a" }}
-        />
-
+        <input type="range" min="0" max="100" step="1" value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0} onChange={(e) => setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))} style={{ width: "100%", accentColor: "#18bb1a" }} />
         <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
-          {[25, 50, 75, 100].map(p => (
-            <button key={p} onClick={() => setStakeAmount(((maxStakeable * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>
-              {p}%
-            </button>
-          ))}
+          {[25,50,75,100].map(p => <button key={p} onClick={() => setStakeAmount(((maxStakeable * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>{p}%</button>)}
         </div>
-
         <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 12, textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 900, color: "#18bb1a" }}>
-            {Number(stakeAmount || 0).toLocaleString()} CORE
-          </div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#18bb1a" }}>{Number(stakeAmount || 0).toLocaleString()} CORE</div>
         </div>
       </div>
 
       {/* Withdraw Section */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Withdraw CORE</label>
-        
-        <input
-          type="range"
-          min="0" max="100" step="1"
-          value={Number(vaultData?.coreStaked || 0) > 0 ? Math.round((Number(withdrawAmount || 0) / Number(vaultData.coreStaked)) * 100) : 0}
-          onChange={(e) => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * Number(e.target.value)) / 100).toFixed(4))}
-          style={{ width: "100%", accentColor: "#ff4d4d" }}
-        />
-
+        <input type="range" min="0" max="100" step="1" value={Number(vaultData?.coreStaked || 0) > 0 ? Math.round((Number(withdrawAmount || 0) / Number(vaultData.coreStaked)) * 100) : 0} onChange={(e) => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * Number(e.target.value)) / 100).toFixed(4))} style={{ width: "100%", accentColor: "#ff4d4d" }} />
         <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
-          {[25, 50, 75, 100].map(p => (
-            <button key={p} onClick={() => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>
-              {p}%
-            </button>
-          ))}
+          {[25,50,75,100].map(p => <button key={p} onClick={() => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>{p}%</button>)}
         </div>
-
         <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 12, textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 900, color: "#ff4d4d" }}>
-            {Number(withdrawAmount || 0).toLocaleString()} CORE
-          </div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#ff4d4d" }}>{Number(withdrawAmount || 0).toLocaleString()} CORE</div>
         </div>
       </div>
 
-{/* Action Buttons */}
+      {/* Buttons */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12 }}>
         <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: 1 }}>
           {txLoading ? "Processing..." : needsApproval ? "Approve CORE" : "Stake CORE"}
