@@ -136,8 +136,6 @@ export async function fetchStakeHistory(
       provider
     );
 
-    const userNFTMap = {};
-
     // ================= MERGE HISTORY =================
     const historyMap = new Map();
 
@@ -237,6 +235,7 @@ const newState = {
 async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider) {
   const daily = {};
   const cache = new Map();
+  const userNFTMap = {};
 
   async function getBlock(blockNumber) {
     if (!cache.has(blockNumber)) {
