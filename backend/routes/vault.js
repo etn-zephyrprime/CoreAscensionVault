@@ -6,7 +6,6 @@ import { fetchStakeHistory, forceUpdateHistory } from "../services/stakeHistoryS
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
-
 const router = express.Router();
 
 // Example: backend/routes/api/vault.js  (or wherever your endpoint is)

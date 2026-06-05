@@ -129,7 +129,7 @@ export async function fetchStakeHistory(
     }
 
     // ================= PROCESS EVENTS =================
-const { daily: newDaily, userNFTMap } = await processEvents(
+const { daily: newDaily, userNFTMap, activeUserNFTs } = await processEvents(
   coreEvents,
   nftEvents,
   nftWithdrawEvents,
@@ -159,17 +159,6 @@ const { daily: newDaily, userNFTMap } = await processEvents(
     let updatedHistory = Array.from(historyMap.values());
 
     const activeUserNFTs = {};
-
-for (const [user, events] of Object.entries(userNFTMap || {})) {
-  const map = new Map();
-
-  for (const nft of events) {
-    const key = `${nft.nftAddress.toLowerCase()}-${nft.tokenId}`;
-    map.set(key, nft);
-  }
-
-  activeUserNFTs[user] = Array.from(map.values());
-}
 
     // ================= TODAY METRICS =================
     const todayKey = getDayKey(Math.floor(Date.now() / 1000));
@@ -222,20 +211,6 @@ today.currentApr =
 updatedHistory.sort((a, b) =>
   a.date.localeCompare(b.date)
 );
-
-const newState = {
-  lastProcessedBlock: currentBlock,
-  history: updatedHistory,
-  userStakes: activeUserNFTs,
-};
-
-    await saveHistory(newState);
-    await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
-
-    console.log(
-      `[StakeHistory] ✅ Done | ${updatedHistory.length} entries`
-    );
-
     return updatedHistory;
   } catch (err) {
     console.error("[StakeHistory] Fatal error:", err);
@@ -249,6 +224,18 @@ async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider)
   const daily = {};
   const cache = new Map();
   const userNFTMap = {};
+  const newState = {
+  lastProcessedBlock: currentBlock,
+  history: updatedHistory,
+  userStakes: activeUserNFTs,
+};
+
+    await saveHistory(newState);
+    await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
+
+    console.log(
+      `[StakeHistory] ✅ Done | ${updatedHistory.length} entries`
+    );
 
   async function getBlock(blockNumber) {
     if (!cache.has(blockNumber)) {
@@ -287,6 +274,18 @@ for (const e of nftEvents) {
     tokenId,
   });
 }
+
+for (const [user, events] of Object.entries(userNFTMap || {})) {
+  const map = new Map();
+
+  for (const nft of events) {
+    const key = `${nft.nftAddress.toLowerCase()}-${nft.tokenId}`;
+    map.set(key, nft);
+  }
+
+  activeUserNFTs[user] = Array.from(map.values());
+}
+return { daily, activeUserNFTs };
 
 for (const e of nftWithdrawEvents || []) {
   const user = e.args.user.toLowerCase();
