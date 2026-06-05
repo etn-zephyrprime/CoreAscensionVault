@@ -4,6 +4,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
+import { formatChartDate } from "./formatChartDate";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -41,15 +42,27 @@ async function saveHistory(data) {
   console.log(`[StakeHistory] Saved ${payload.history?.length || 0} entries`);
 }
 
+const rewardsRemaining =
+  Number(ethers.formatEther(totalRewardsFunded)) -
+  Number(ethers.formatEther(totalRewardsPaid));
+
 // ===================== DATE KEY (FIXED) =====================
 
 function getDayKey(timestamp) {
   const d = new Date(timestamp * 1000);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    d.getUTCDate()
-  ).padStart(2, "0")}`;
+  return d.toISOString().split("T")[0];
 }
 
+export function formatChartDate(isoDate) {
+  if (!isoDate) return "";
+
+  const d = new Date(isoDate);
+
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
 // ===================== MAIN INDEXER =====================
 
 export async function fetchStakeHistory(
@@ -170,10 +183,20 @@ export async function fetchStakeHistory(
     }
 
     try {
-      const [totalStakedRaw, rewardPerBlockRaw] = await Promise.all([
-        stakingContract.totalCoreStaked(),
-        stakingContract.rewardPerBlock(),
-      ]);
+const [totalStakedRaw, totalFundedRaw, totalPaidRaw, rewardPerBlockRaw] =
+  await Promise.all([
+    stakingContract.totalCoreStaked(),
+    stakingContract.totalRewardsFunded(),
+    stakingContract.totalRewardsPaid(),
+    stakingContract.rewardPerBlock(),
+  ]);
+
+const totalStaked = Number(ethers.formatEther(totalStakedRaw));
+const totalFunded = Number(ethers.formatEther(totalFundedRaw));
+const totalPaid = Number(ethers.formatEther(totalPaidRaw));
+const rpb = Number(ethers.formatEther(rewardPerBlockRaw));
+
+const rewardsRemaining = Math.max(0, totalFunded - totalPaid);
 
       const totalStaked = Number(ethers.formatEther(totalStakedRaw));
       const rpb = Number(ethers.formatEther(rewardPerBlockRaw));
@@ -195,7 +218,9 @@ export async function fetchStakeHistory(
       entry.nftsStaked = Math.max(0, nftRunning);
     }
 
-    updatedHistory.sort((a, b) => a.date.localeCompare(b.date));
+updatedHistory.sort((a, b) =>
+  a.date.localeCompare(b.date)
+);
 
     const newState = {
       lastProcessedBlock: currentBlock,

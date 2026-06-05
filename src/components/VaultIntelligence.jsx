@@ -75,15 +75,32 @@ function parseDateString(dateStr) {
 export default function VaultIntelligence({ isMobile, vaultData }) {
   const rawHistory = vaultData?.stakeHistory || [];
 
+  const normalizeDate = (d) => {
+  if (!d) return d;
+
+  // already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+
+  const parsed = new Date(d);
+  if (isNaN(parsed)) return d;
+
+  return parsed.toISOString().split("T")[0];
+};
+
+const cleanedHistory = rawHistory.map((e) => ({
+  ...e,
+  date: normalizeDate(e.date),
+}));
+
   // Sort chronologically (May → June) + enrich numbers
-  const enrichedHistory = [...rawHistory]
-    .sort((a, b) => parseDateString(a.date) - parseDateString(b.date))
-    .map((entry) => ({
-      ...entry,
-      coreStaked: Number(entry.coreStaked || 0),
-      rewardsRemaining: Number(entry.rewardsRemaining || 0),
-      currentApr: Number(entry.currentApr || 0),
-    }));
+const enrichedHistory = [...cleanedHistory]
+  .sort((a, b) => new Date(a.date) - new Date(b.date))
+  .map((entry) => ({
+    ...entry,
+    coreStaked: Number(entry.coreStaked || 0),
+    rewardsRemaining: Number(entry.rewardsRemaining || 0),
+    currentApr: Number(entry.currentApr || 0),
+  }));
 
   const [visibleLines, setVisibleLines] = useState({
     coreStaked: true,
@@ -203,6 +220,7 @@ export default function VaultIntelligence({ isMobile, vaultData }) {
 
               <YAxis
                 yAxisId="right"
+                tickFormatter={(v) => `${v.toFixed(0)}%`}
                 orientation="right"
                 stroke="#00d4ff"
                 fontSize={isMobile ? 10 : 11}
