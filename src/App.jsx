@@ -107,6 +107,14 @@ export default function App() {
 
         <VaultStats vaultData={vaultData} isMobile={isMobile} />
 
+          <NftHangar
+            vaultData={vaultData}
+            wallet={wallet}
+            isMobile={isMobile}
+            reloadVaultData={reloadVaultData}
+          />
+        </div>
+
         <div
           style={{
             display: "grid",
@@ -120,14 +128,6 @@ export default function App() {
             isMobile={isMobile}
             reloadVaultData={reloadVaultData}
           />
-
-          <NftHangar
-            vaultData={vaultData}
-            wallet={wallet}
-            isMobile={isMobile}
-            reloadVaultData={reloadVaultData}
-          />
-        </div>
 
 <VaultIntelligence
   isMobile={isMobile}
