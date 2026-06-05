@@ -158,8 +158,6 @@ const { daily: newDaily, userNFTMap, activeUserNFTs } = await processEvents(
 
     let updatedHistory = Array.from(historyMap.values());
 
-    const activeUserNFTs = {};
-
     // ================= TODAY METRICS =================
     const todayKey = getDayKey(Math.floor(Date.now() / 1000));
 
