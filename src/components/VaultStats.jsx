@@ -10,7 +10,7 @@ function formatNumber(value, decimals = 2) {
 }
 
 function formatTime(seconds) {
-  if (!seconds) return "Ready";
+  if (!seconds || seconds <= 0) return "Ready";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return `${h}h ${m}m`;
@@ -40,7 +40,6 @@ export default function VaultStats({ vaultData, isMobile }) {
         label="Total Staked"
         value={`${formatNumber(data.totalCoreStaked, 0)} CORE`}
       />
-{/* Rewards Left - Special handling */}
       <StatBox
         isMobile={isMobile}
         icon={<Flame size={20} />}
@@ -59,7 +58,7 @@ export default function VaultStats({ vaultData, isMobile }) {
                 opacity: 0.95,
               }}
             >
-              Next 500 CORE drip in {formatTime(data.nextDripSeconds)}
+              Next drip in {formatTime(data.nextDripSeconds)}
             </div>
           </>
         }
