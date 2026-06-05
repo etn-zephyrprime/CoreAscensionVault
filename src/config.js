@@ -8,6 +8,7 @@ export const RARE_BACKGROUNDS = ["Gold"];
 export const CORE_TOKEN = "0x309B916b3A90cb3E071697Ea9680e9217A30066f";
 export const ADMIN_ADDRESS = "0x3Fd2e5B4AC0efF6DFDF2446abddAB3f66B425099"
 export const BACKEND_URL = import.meta.env.VITE_GAME_API_URL || "http://localhost:4000";
+export const STAKING_BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 export const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com";
 export const STAKING_ADDRESS = "0x200A9b5Fe78d4cB5232a3A0C52B510F961C51Cd6";
 export const DRIP_FUNDER_ADDRESS = "0x5c13dfF13885FbEc61207d52F992c55a5aa1908d";

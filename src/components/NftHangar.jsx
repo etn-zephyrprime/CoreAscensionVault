@@ -5,7 +5,7 @@ import Panel from "./Panel.jsx";
 import NeonButton from "./NeonButton.jsx";
 import { green, panel2 } from "../styles/theme.js";
 
-import { STAKING_ADDRESS, BACKEND_URL } from "../config.js";
+import { STAKING_ADDRESS, BACKEND_URL, STAKING_BACKEND_URL } from "../config.js";
 import stakingABI from "../abis/stakingABI.json";
 import EVGABI from "../abis/EVGABI.json";
 
@@ -70,7 +70,7 @@ async function loadStakedNfts() {
       return;
     }
 
-    const url = `${BACKEND_URL}/api/vault/nfts/staked/${wallet.account.toLowerCase()}`;
+    const url = `${STAKING_BACKEND_URL}/api/vault/nfts/staked/${wallet.account.toLowerCase()}`;
     console.log("Fetching staked NFTs from:", url);   // ← Debug
 
     const res = await fetch(url);
