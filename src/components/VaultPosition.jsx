@@ -190,14 +190,15 @@ export default function VaultPosition({
     try {
       if (Number(vaultData?.earnedCore || 0) <= 0) return alert("No rewards available.");
 
-      let warning = "Claim rewards?";
+      let warning = "Claim CORE rewards?";
+      
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(0n);
         if (preview) {
-          warning = `EARLY PENALTY ACTIVE (50% slash on rewards)\n\n` +
-            `Reward before slash: ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
-            `Slash amount: ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
-            `You will receive: ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nContinue?`;
+          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (50% slash on rewards)\n\n` +
+            `Before slash : ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
+            `Slash amount : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
+            `You will get : ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nContinue?`;
         }
       }
 
@@ -224,14 +225,15 @@ export default function VaultPosition({
       if (parsedWithdrawAmount <= 0n) return alert("Enter amount to withdraw.");
 
       let warning = `Withdraw ${withdrawAmount} CORE?`;
+      
       if (data.earlyExit) {
         const preview = await previewEarlyPenalty(parsedWithdrawAmount);
         if (preview) {
-          warning = `EARLY PENALTY ACTIVE (15% on CORE)\n\n` +
-            `Requested: ${withdrawAmount} CORE\n` +
-            `You will receive: ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
-            `Penalty to pool: ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
-            `Penalty burned: ${Number(preview.penaltyBurned).toFixed(4)} CORE\n\nContinue?`;
+          warning = `⚠️ EARLY EXIT PENALTY ACTIVE (15% on CORE)\n\n` +
+            `Requested     : ${withdrawAmount} CORE\n` +
+            `You will get  : ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
+            `To Pool       : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n` +
+            `Burned        : ${Number(preview.penaltyBurned).toFixed(4)} CORE\n\nContinue?`;
         }
       }
 
@@ -257,15 +259,16 @@ export default function VaultPosition({
 
   async function exitVault() {
     try {
-      let warning = "Exit vault completely?";
+      let warning = "Exit the vault completely?";
+      
       if (data.earlyExit) {
         const fullAmount = ethers.parseEther(String(vaultData?.coreStaked || 0));
         const preview = await previewEarlyPenalty(fullAmount);
         if (preview) {
-          warning = `EARLY PENALTY ACTIVE\n\n` +
-            `CORE returned: ${Number(preview.returnedAmount).toFixed(4)}\n` +
-            `Penalty to pool: ${Number(preview.penaltyToPool).toFixed(4)}\n` +
-            `Rewards after slash: ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nContinue?`;
+          warning = `⚠️ EARLY EXIT PENALTY ACTIVE\n\n` +
+            `CORE returned : ${Number(preview.returnedAmount).toFixed(4)}\n` +
+            `To Pool       : ${Number(preview.penaltyToPool).toFixed(4)}\n` +
+            `Rewards after slash : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nContinue?`;
         }
       }
 
@@ -287,7 +290,7 @@ export default function VaultPosition({
       setTxLoading(false);
     }
   }
-
+  
   const maxStakeable = Math.max(0, Math.min(Number(coreBalance || 0), 10000 - Number(vaultData?.coreStaked || 0)));
 
   return (
