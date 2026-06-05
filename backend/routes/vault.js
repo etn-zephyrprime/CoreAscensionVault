@@ -6,7 +6,17 @@ import { fetchStakeHistory, forceUpdateHistory } from "../services/stakeHistoryS
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
+const STAKES_FILE = path.join(__dirname, "../data/staked-nfts.json");   // ← Added
+
 const router = express.Router();
+
+// Ensure data directory exists
+async function ensureDataDir() {
+  const dir = path.dirname(HISTORY_FILE);
+  try {
+    await fs.mkdir(dir, { recursive: true });
+  } catch (e) {}
+}
 
 // Example: backend/routes/api/vault.js  (or wherever your endpoint is)
 export async function getStakeHistory(req, res) {
@@ -100,8 +110,15 @@ router.get("/nfts/staked/:wallet", async (req, res) => {
 });
 
 router.post("/admin/seed-stakes", async (req, res) => {
-  await fs.writeFile(STAKES_FILE, JSON.stringify(req.body, null, 2));
-  res.json({ ok: true });
+  try {
+    await ensureDataDir();
+    await fs.writeFile(STAKES_FILE, JSON.stringify(req.body, null, 2));
+    console.log("✅ Stakes seeded successfully");
+    res.json({ success: true, message: "Stakes seeded" });
+  } catch (err) {
+    console.error("Seed stakes error:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;
