@@ -129,48 +129,38 @@ export default function VaultPosition({
 async function previewEarlyPenalty(amountWei = 0n) {
   if (!wallet.provider || !wallet.account) return null;
 
-  const staking = new ethers.Contract(
-    STAKING_ADDRESS,
-    stakingABI,
-    wallet.provider
-  );
-
   try {
-    const [corePenalty, rewardSlash] = await Promise.allSettled([
-      staking.pendingEarlyCorePenalty(wallet.account, amountWei),
-      staking.pendingEarlyRewardSlash(wallet.account)
-    ]);
+    const staking = new ethers.Contract(
+      STAKING_ADDRESS,
+      stakingABI,
+      wallet.provider
+    );
 
-    const cp =
-      corePenalty.status === "fulfilled"
-        ? corePenalty.value
-        : null;
+    const cp = await staking.pendingEarlyCorePenalty.staticCall(
+      wallet.account,
+      amountWei
+    );
 
-    const rs =
-      rewardSlash.status === "fulfilled"
-        ? rewardSlash.value
-        : null;
+    const rs = await staking.pendingEarlyRewardSlash.staticCall(
+      wallet.account
+    );
 
-    if (!cp && !rs) return null;
-
-    const preview = {
-      returnedAmount: cp ? ethers.formatEther(cp[3]) : "0",
-      penaltyToPool: cp ? ethers.formatEther(cp[1]) : "0",
-      penaltyBurned: cp ? ethers.formatEther(cp[2]) : "0",
-      rewardBeforeSlash: rs ? ethers.formatEther(rs[0]) : "0",
-      slashAmount: rs ? ethers.formatEther(rs[1]) : "0",
-      rewardAfterSlash: rs ? ethers.formatEther(rs[2]) : "0",
+    return {
+      returnedAmount: ethers.formatEther(cp[3]),
+      penaltyToPool: ethers.formatEther(cp[1]),
+      penaltyBurned: ethers.formatEther(cp[2]),
+      rewardBeforeSlash: ethers.formatEther(rs[0]),
+      slashAmount: ethers.formatEther(rs[1]),
+      rewardAfterSlash: ethers.formatEther(rs[2]),
     };
 
-    setPenaltyPreview(preview);
-
-    return preview;
-
   } catch (err) {
-    console.warn("Preview failed:", err.message);
-    setPenaltyPreview(null);
-    return null;
-  }
+ console.error(
+   "Preview failed:",
+   err
+ );
+ return null;
+}
 }
 
 useEffect(() => {
