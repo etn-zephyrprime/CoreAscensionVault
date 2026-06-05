@@ -84,7 +84,7 @@ export default function VaultPosition({
     ? "No Position"
     : data.earlyExit ? "Active" : "Protected";
 
-  const [coreAllowance, setCoreAllowance] = useState(0);
+  const [coreAllowance, setCoreAllowance] = useState(0n);
   const [coreBalance, setCoreBalance] = useState(0);
   const [txLoading, setTxLoading] = useState(false);
 
@@ -104,7 +104,10 @@ export default function VaultPosition({
     }
   }, [withdrawAmount]);
 
-  const needsApproval = wallet.account && parsedStakeAmount > 0n && ethers.parseEther(String(coreAllowance || 0)) < parsedStakeAmount;
+const needsApproval =
+  wallet.account &&
+  parsedStakeAmount > 0n &&
+  coreAllowance < parsedStakeAmount;
 
   async function loadCoreApprovalData() {
     try {
@@ -114,7 +117,7 @@ export default function VaultPosition({
         core.allowance(wallet.account, STAKING_ADDRESS),
         core.balanceOf(wallet.account),
       ]);
-      setCoreAllowance(Number(ethers.formatEther(allowance)));
+      setCoreAllowance(allowance);
       setCoreBalance(Number(ethers.formatEther(balance)));
     } catch (err) {
       console.error("loadCoreApprovalData failed:", err);
@@ -136,31 +139,29 @@ async function previewEarlyPenalty(amountWei = 0n) {
       wallet.provider
     );
 
-    const cp = await staking.pendingEarlyCorePenalty.staticCall(
+    const cp = await staking.pendingEarlyCorePenalty(
       wallet.account,
       amountWei
-    );
-
-    const rs = await staking.pendingEarlyRewardSlash.staticCall(
-      wallet.account
     );
 
     return {
       returnedAmount: ethers.formatEther(cp[3]),
       penaltyToPool: ethers.formatEther(cp[1]),
       penaltyBurned: ethers.formatEther(cp[2]),
-      rewardBeforeSlash: ethers.formatEther(rs[0]),
-      slashAmount: ethers.formatEther(rs[1]),
-      rewardAfterSlash: ethers.formatEther(rs[2]),
+      slashAmount: ethers.formatEther(cp[0]),
     };
 
-  } catch (err) {
- console.error(
-   "Preview failed:",
-   err
- );
- return null;
-}
+try {
+  const result = await staking.pendingEarlyCorePenalty(
+    wallet.account,
+    amountWei
+  );
+  console.log(result);
+
+} catch(e) {
+  console.log("FULL ERROR");
+  console.log(e);
+  console.log(e.data);
 }
 
 useEffect(() => {
