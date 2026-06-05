@@ -70,17 +70,20 @@ async function loadStakedNfts() {
       return;
     }
 
-    const res = await fetch(
-      `${BACKEND_URL}/nfts/staked/${wallet.account}`
-    );
+    const url = `${BACKEND_URL}/api/vault/nfts/staked/${wallet.account.toLowerCase()}`;
+    console.log("Fetching staked NFTs from:", url);   // ← Debug
+
+    const res = await fetch(url);
 
     if (!res.ok) {
-      throw new Error("Failed to fetch staked NFTs");
+      throw new Error(`HTTP ${res.status}`);
     }
 
     const data = await res.json();
 
-    // expected format: [{ nftAddress, tokenId }]
+    console.log("Staked NFTs received:", data);   // ← Debug
+
+    // Enrich with name
     const enriched = (data || []).map((item) => ({
       nftAddress: item.nftAddress,
       tokenId: String(item.tokenId),
