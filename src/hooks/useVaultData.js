@@ -16,7 +16,7 @@ const fallbackVault = {
   earlyExit: false,
   penaltyDaysRemaining: 0,
   userShare: 0,
-  totalCoreBurned: 0,
+  totalCoreBurned: 5,
   stakeHistory: [],
   nextDripSeconds: 0,
 };
@@ -62,12 +62,14 @@ const loadVaultData = useCallback(async () => {
 
     const daysRemaining = Math.floor((blocksRemaining * 5) / 86400);   // ← FIXED
 
+    const totalCoreBurned = 5 + onChainBurned;   // 5 from previous contract
+
     let nextVaultData = {
       ...fallbackVault,
       totalCoreStaked: Number(totalCoreStaked.toFixed(2)),
       rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
       daysRemaining: Math.max(0, daysRemaining),        // Should now be ~479 days
-      totalCoreBurned: Number(ethers.formatEther(totalCoreBurnedRaw)),
+      totalCoreBurned: Number(totalCoreBurned.toFixed(2)),
       currentApr: Number(currentApr.toFixed(2)),
       nextDripSeconds,
     };
