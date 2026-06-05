@@ -49,13 +49,6 @@ function getDayKey(timestamp) {
   return d.toISOString().split("T")[0];
 }
 
-  const d = new Date(isoDate);
-
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
 // ===================== MAIN INDEXER =====================
 
 export async function fetchStakeHistory(
