@@ -49,43 +49,39 @@ export default function NftHangar({
     return names;
   }, [stakedNfts, mapping]);
 
-  async function loadStakedNfts() {
-    try {
-      if (!wallet.provider || !wallet.account) {
-        setStakedNfts([]);
-        return;
-      }
-
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
-      let list = [];
-
-      try {
-        // Primary method
-        list = await staking.getUserNFTs(wallet.account);
-      } catch (err) {
-        console.warn("getUserNFTs failed:", err.message);
-        // Fallback: Try to get from getUser if possible (though it doesn't return NFTs)
-        try {
-          const user = await staking.getUser(wallet.account);
-          console.warn("getUser called as fallback - no NFT list available");
-        } catch (e2) {}
-      }
-
-      const enriched = list.map((item) => ({
-        nftAddress: item.collection,
-        tokenId: item.tokenId.toString(),
-        name: getNftName({
-          nftAddress: item.collection,
-          tokenId: item.tokenId.toString(),
-        }),
-      }));
-
-      setStakedNfts(enriched);
-    } catch (err) {
-      console.error("loadStakedNfts failed:", err);
+async function loadStakedNfts() {
+  try {
+    if (!wallet.account) {
       setStakedNfts([]);
+      return;
     }
+
+    const res = await fetch(
+      `${BACKEND_URL}/nfts/staked/${wallet.account}`
+    );
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch staked NFTs");
+    }
+
+    const data = await res.json();
+
+    // expected format: [{ nftAddress, tokenId }]
+    const enriched = (data || []).map((item) => ({
+      nftAddress: item.nftAddress,
+      tokenId: String(item.tokenId),
+      name: getNftName({
+        nftAddress: item.nftAddress,
+        tokenId: String(item.tokenId),
+      }),
+    }));
+
+    setStakedNfts(enriched);
+  } catch (err) {
+    console.error("loadStakedNfts failed:", err);
+    setStakedNfts([]);
   }
+}
 
   async function stakeSelectedNft() {
     if (!selectedNft) {
@@ -233,7 +229,7 @@ export default function NftHangar({
           {showNftGallery ? "−" : "+"}
         </div>
       </div>
-      
+
       <NeonButton
         variant="dark"
         onClick={refreshOwnedNfts}

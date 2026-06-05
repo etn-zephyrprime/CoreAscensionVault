@@ -86,4 +86,12 @@ router.post("/stake-history/update", async (req, res) => {
   }
 });
 
+app.get("/nfts/staked/:wallet", async (req, res) => {
+  const wallet = req.params.wallet.toLowerCase();
+
+  const state = await loadHistory(); // reuse same file
+
+  res.json(state.userStakes?.[wallet] || []);
+});
+
 export default router;

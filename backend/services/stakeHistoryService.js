@@ -136,6 +136,8 @@ export async function fetchStakeHistory(
       provider
     );
 
+    const userNFTMap = {};
+
     // ================= MERGE HISTORY =================
     const historyMap = new Map();
 
@@ -210,10 +212,11 @@ updatedHistory.sort((a, b) =>
   a.date.localeCompare(b.date)
 );
 
-    const newState = {
-      lastProcessedBlock: currentBlock,
-      history: updatedHistory,
-    };
+const newState = {
+  lastProcessedBlock: currentBlock,
+  history: updatedHistory,
+  userStakes: activeUserNFTs,
+};
 
     await saveHistory(newState);
     await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
@@ -251,25 +254,67 @@ async function processEvents(coreEvents, nftEvents, nftWithdrawEvents, provider)
     daily[day].coreStaked += Number(ethers.formatEther(e.args.amount || 0));
   }
 
-  for (const e of nftEvents) {
-    const block = await getBlock(e.blockNumber);
-    const day = getDayKey(block.timestamp);
+for (const e of nftEvents) {
+  const user = e.args.user.toLowerCase();
+  const collection = e.args.collection;
+  const tokenId = e.args.tokenId.toString();
 
-    if (!daily[day]) daily[day] = { date: day, coreStaked: 0, nftsStaked: 0 };
+  const block = await getBlock(e.blockNumber);
+  const day = getDayKey(block.timestamp);
 
-    daily[day].nftsStaked += 1;
+  if (!daily[day]) {
+    daily[day] = { date: day, coreStaked: 0, nftsStaked: 0 };
   }
 
-  for (const e of nftWithdrawEvents || []) {
-    const block = await getBlock(e.blockNumber);
-    const day = getDayKey(block.timestamp);
+  daily[day].nftsStaked += 1;
 
-    if (!daily[day]) daily[day] = { date: day, coreStaked: 0, nftsStaked: 0 };
+  if (!userNFTMap[user]) userNFTMap[user] = [];
 
-    daily[day].nftsStaked -= 1;
+  userNFTMap[user].push({
+    nftAddress: collection,
+    tokenId,
+  });
+}
+
+for (const e of nftWithdrawEvents || []) {
+  const user = e.args.user.toLowerCase();
+  const collection = e.args.collection;
+  const tokenId = e.args.tokenId.toString();
+
+  const block = await getBlock(e.blockNumber);
+  const day = getDayKey(block.timestamp);
+
+  if (!daily[day]) {
+    daily[day] = { date: day, coreStaked: 0, nftsStaked: 0 };
   }
 
+  daily[day].nftsStaked -= 1;
+
+  const list = userNFTMap[user];
+  if (list) {
+    userNFTMap[user] = list.filter(
+      (nft) =>
+        !(
+          nft.nftAddress.toLowerCase() === collection.toLowerCase() &&
+          nft.tokenId === tokenId
+        )
+    );
+  }
+}
   return daily;
+}
+
+const activeUserNFTs = {};
+
+for (const [user, events] of Object.entries(userNFTMap)) {
+  const map = new Map();
+
+  for (const nft of events) {
+    const key = `${nft.nftAddress.toLowerCase()}-${nft.tokenId}`;
+    map.set(key, nft);
+  }
+
+  activeUserNFTs[user] = Array.from(map.values());
 }
 
 // ===================== FORCE EXPORT =====================
