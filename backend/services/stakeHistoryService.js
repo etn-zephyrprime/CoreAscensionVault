@@ -140,36 +140,29 @@ const {
   provider
 );
 
-    // ================= MERGE HISTORY =================
-    const historyMap = new Map();
+// ================= MERGE HISTORY =================
+const historyMap = new Map();
 
-    for (const h of state.history || []) {
-      historyMap.set(h.date, { ...h });
-    }
+// existing history
+for (const h of state.history || []) {
+  historyMap.set(h.date, { ...h });
+}
 
-    for (const day of Object.values(newDaily)) {
-      const existing = historyMap.get(day.date);
+// new daily data
+for (const day of Object.values(newDaily)) {
+  const existing = historyMap.get(day.date);
 
-      if (!existing) {
-        historyMap.set(day.date, { ...day });
-      } else {
-        existing.coreStaked =
-          (existing.coreStaked || 0) + (day.coreStaked || 0);
-        existing.nftsStaked =
-          (existing.nftsStaked || 0) + (day.nftsStaked || 0);
-      }
-    }
+  if (!existing) {
+    historyMap.set(day.date, { ...day });
+  } else {
+    existing.coreStaked = (existing.coreStaked || 0) + (day.coreStaked || 0);
+    existing.nftsStaked = (existing.nftsStaked || 0) + (day.nftsStaked || 0);
+  }
+}
 
-    let updatedHistory = Array.from(historyMap.values());
-
-const newState = {
-  lastProcessedBlock: currentBlock,
-  history: updatedHistory,
-  userStakes: activeUserNFTs,
-};
-
-await saveHistory(newState);
-await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
+const updatedHistory = Array.from(historyMap.values()).sort(
+  (a, b) => a.date.localeCompare(b.date)
+);
 
     // ================= TODAY METRICS =================
     const todayKey = getDayKey(Math.floor(Date.now() / 1000));
