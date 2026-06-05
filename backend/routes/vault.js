@@ -2,7 +2,7 @@ import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { fetchStakeHistory } from "../services/stakeHistoryService.js";
+import { fetchStakeHistory, forceUpdateHistory } from "../services/stakeHistoryService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -86,12 +86,18 @@ router.post("/stake-history/update", async (req, res) => {
   }
 });
 
-app.get("/nfts/staked/:wallet", async (req, res) => {
-  const wallet = req.params.wallet.toLowerCase();
+router.get("/nfts/staked/:wallet", async (req, res) => {
+  try {
+    const wallet = req.params.wallet.toLowerCase();
 
-  const state = await loadHistory(); // reuse same file
+    const data = await fs.readFile(HISTORY_FILE, "utf8");
+    const state = JSON.parse(data);
 
-  res.json(state.userStakes?.[wallet] || []);
+    res.json(state.userStakes?.[wallet] || []);
+  } catch (err) {
+    console.error("staked nft route failed:", err);
+    res.json([]);
+  }
 });
 
 export default router;
