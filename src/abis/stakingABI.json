@@ -1169,5 +1169,73 @@
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+    {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "withdrawAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "pendingEarlyCorePenalty",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalPenalty",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "penaltyToPool",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "penaltyBurned",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "returnedAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "pendingEarlyRewardSlash",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "rewardBeforeSlash",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "slashAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rewardAfterSlash",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ]
