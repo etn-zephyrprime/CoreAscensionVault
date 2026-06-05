@@ -332,10 +332,61 @@ export default function VaultPosition({
         )}
       </div>
 
-      {/* Stake + Withdraw Sliders with Presets (unchanged from your original) */}
-      {/* ... (I kept your full slider + preset code) ... */}
+      {/* Stake Section */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Stake CORE</label>
+        
+        <input
+          type="range"
+          min="0" max="100" step="1"
+          value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0}
+          onChange={(e) => setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))}
+          style={{ width: "100%", accentColor: "#18bb1a" }}
+        />
 
-      {/* Action Buttons */}
+        <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
+          {[25, 50, 75, 100].map(p => (
+            <button key={p} onClick={() => setStakeAmount(((maxStakeable * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>
+              {p}%
+            </button>
+          ))}
+        </div>
+
+        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 12, textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#18bb1a" }}>
+            {Number(stakeAmount || 0).toLocaleString()} CORE
+          </div>
+        </div>
+      </div>
+
+      {/* Withdraw Section */}
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Withdraw CORE</label>
+        
+        <input
+          type="range"
+          min="0" max="100" step="1"
+          value={Number(vaultData?.coreStaked || 0) > 0 ? Math.round((Number(withdrawAmount || 0) / Number(vaultData.coreStaked)) * 100) : 0}
+          onChange={(e) => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * Number(e.target.value)) / 100).toFixed(4))}
+          style={{ width: "100%", accentColor: "#ff4d4d" }}
+        />
+
+        <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
+          {[25, 50, 75, 100].map(p => (
+            <button key={p} onClick={() => setWithdrawAmount(((Number(vaultData?.coreStaked || 0) * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>
+              {p}%
+            </button>
+          ))}
+        </div>
+
+        <div style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 12, padding: 12, textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 900, color: "#ff4d4d" }}>
+            {Number(withdrawAmount || 0).toLocaleString()} CORE
+          </div>
+        </div>
+      </div>
+
+{/* Action Buttons */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12 }}>
         <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: 1 }}>
           {txLoading ? "Processing..." : needsApproval ? "Approve CORE" : "Stake CORE"}
