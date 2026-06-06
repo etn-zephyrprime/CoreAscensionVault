@@ -26,7 +26,8 @@ export default function App() {
 
   const { vaultData, reloadVaultData, loading } = useVaultData(
     wallet.provider,
-    wallet.account
+    wallet.account,
+    wallet.isConnected
   );
 
   // Force reload when wallet connects (especially important for WalletConnect on mobile)

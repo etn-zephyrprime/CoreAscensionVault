@@ -21,14 +21,14 @@ const fallbackVault = {
   nextDripSeconds: 0,
 };
 
-export function useVaultData(provider, account) {
+export function useVaultData(provider, account, isConnected) {
   const [vaultData, setVaultData] = useState(fallbackVault);
   const [loading, setLoading] = useState(false);
   const mountedRef = useRef(true);
   const loadAttemptRef = useRef(0);
 
 const loadVaultData = useCallback(async (source = "auto") => {
-  if (!provider || !account || !mountedRef.current) return;
+  if (!provider || !account || !isConnected || !mountedRef.current) return;
 
   try {
     await provider.getNetwork();
@@ -135,29 +135,19 @@ userData = {
 
 // Replace your boot() useEffect with this:
 useEffect(() => {
-  if (!provider || !account) return;
+  if (!provider || !account || !isConnected) return;
 
   let cancelled = false;
 
   async function boot() {
-    // Wait for provider to stabilise — critical for WalletConnect on Android
     await new Promise(res => setTimeout(res, 1500));
     if (cancelled) return;
-
     try {
       await provider.getNetwork();
       if (!cancelled) await loadVaultData("initial");
     } catch (e) {
-      console.warn("Wallet not ready on first attempt, retrying...", e);
-      // Retry once more after another delay
       await new Promise(res => setTimeout(res, 3000));
-      if (!cancelled) {
-        try {
-          await loadVaultData("retry");
-        } catch (e2) {
-          console.error("Retry also failed:", e2);
-        }
-      }
+      if (!cancelled) loadVaultData("retry");
     }
   }
 
@@ -171,7 +161,7 @@ useEffect(() => {
     cancelled = true;
     clearInterval(interval);
   };
-}, [provider, account, loadVaultData]);
+}, [provider, account, isConnected, loadVaultData]); // 👈 isConnected added
   return { vaultData, reloadVaultData: loadVaultData, loading };
 }
 
