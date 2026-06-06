@@ -3,14 +3,6 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
-import { STAKING_ADDRESS } from "../config.js";
-import stakingABI from '../../src/abis/stakingABI.json' with { type: 'json' };
-
-const stakingContract = new ethers.Contract(
-  STAKING_ADDRESS,
-  stakingABI,
-  provider
-);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -102,30 +94,22 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   let state = await loadHistory();
 
   if (force) {
-    state = {
-      lastProcessedBlock: fromBlock,
-      history: [],
-      userStakes: {},
-    };
+    state = { lastProcessedBlock: fromBlock, history: [], userStakes: {} };
   }
 
   const lastBlock = state.lastProcessedBlock || CONTRACT_CREATION_BLOCK;
 
-  // Skip if we're already up-to-date (within last 30 blocks)
   if (!force && lastBlock >= currentBlock - 30) {
     return state.history;
   }
 
   const startBlock = lastBlock + 1;
 
-  console.log(`Fetching events from block ${startBlock} to ${currentBlock}`);
+  console.log(`🔄 Fetching events from block ${startBlock} to ${currentBlock}`);
 
-  // === Correct event filters based on your actual ABI ===
   const coreStakeFilter = stakingContract.filters.CoreStaked();
   const nftStakeFilter = stakingContract.filters.NFTStaked();
   const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn();
-
-  console.log(`Fetching events from block ${startBlock} to ${currentBlock}`);
 
   const [coreEvents, nftEvents, withdrawEvents] = await Promise.all([
     fetchEventsInChunks(stakingContract, coreStakeFilter, startBlock, currentBlock),
@@ -142,12 +126,8 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
     dripContract
   );
 
-  // ================= MERGE + ADD REWARDS DATA =================
-  const map = new Map();
-
-  for (const h of state.history || []) {
-    map.set(h.date, { ...h });
-  }
+  // Merge with existing history
+  const map = new Map(state.history?.map(h => [h.date, { ...h }]) || []);
 
   for (const day of Object.values(daily)) {
     const existing = map.get(day.date) || {};
@@ -162,7 +142,7 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
 
   const history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 
-  // Cumulative NFTs
+  // Cumulative NFT count
   let runningNfts = 0;
   for (const d of history) {
     runningNfts += d.nftsStaked || 0;
@@ -179,7 +159,7 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   await saveHistory(newState);
   await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
 
-  console.log(`✅ Stake history updated up to block ${currentBlock}`);
+  console.log(`✅ Stake history updated up to block ${currentBlock} | ${history.length} days`);
   return history;
 }
 
@@ -188,17 +168,14 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
 async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, stakingContract, dripContract) {
   const daily = {};
   const cache = new Map();
-
   const activeUserNFTs = await loadStakes();
 
   async function getBlock(n) {
-    if (!cache.has(n)) {
-      cache.set(n, await provider.getBlock(n));
-    }
+    if (!cache.has(n)) cache.set(n, await provider.getBlock(n));
     return cache.get(n);
   }
 
-  // CORE STAKES
+  // Core stakes
   for (const e of coreEvents) {
     const block = await getBlock(e.blockNumber);
     const day = getDayKey(block.timestamp);
@@ -206,7 +183,7 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
     daily[day].coreStaked += Number(ethers.formatEther(e.args.amount || 0));
   }
 
-  // NFT STAKE
+  // NFT Staked
   for (const e of nftEvents) {
     const user = e.args.user.toLowerCase();
     const collection = e.args.collection;
@@ -219,17 +196,13 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
     daily[day].nftsStaked += 1;
 
     activeUserNFTs[user] ||= [];
-
-    const exists = activeUserNFTs[user].some(
-      (n) => n.nftAddress.toLowerCase() === collection.toLowerCase() && n.tokenId === tokenId
-    );
-
-    if (!exists) {
+    if (!activeUserNFTs[user].some(n => 
+      n.nftAddress.toLowerCase() === collection.toLowerCase() && n.tokenId === tokenId)) {
       activeUserNFTs[user].push({ nftAddress: collection, tokenId });
     }
   }
 
-  // NFT WITHDRAW
+  // NFT Withdrawn
   for (const e of withdrawEvents || []) {
     const user = e.args.user.toLowerCase();
     const collection = e.args.collection;
@@ -241,25 +214,22 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
     daily[day] ||= { date: day, coreStaked: 0, nftsStaked: 0 };
     daily[day].nftsStaked -= 1;
 
-    if (!activeUserNFTs[user]) continue;
-
-    activeUserNFTs[user] = activeUserNFTs[user].filter(
-      (n) =>
-        !(n.nftAddress.toLowerCase() === collection.toLowerCase() && n.tokenId === tokenId)
-    );
+    if (activeUserNFTs[user]) {
+      activeUserNFTs[user] = activeUserNFTs[user].filter(
+        n => !(n.nftAddress.toLowerCase() === collection.toLowerCase() && n.tokenId === tokenId)
+      );
+    }
   }
 
-  // Rewards remaining
+  // Drip rewards
   try {
     if (dripContract) {
       const remainingDrips = await dripContract.remainingDrips();
       const totalDripped = await dripContract.totalDripped();
 
-      const remaining = Number(remainingDrips) * 500; // 500 CORE per drip
-
       const today = getDayKey(Math.floor(Date.now() / 1000));
       if (daily[today]) {
-        daily[today].rewardsRemaining = remaining;
+        daily[today].rewardsRemaining = Number(remainingDrips) * 500;
         daily[today].totalDripped = Number(ethers.formatEther(totalDripped));
       }
     }
