@@ -133,21 +133,31 @@ userData = {
     }
   }, [provider, account]);
 
-  // Trigger on provider + account changes
+// Replace your boot() useEffect with this:
 useEffect(() => {
   if (!provider || !account) return;
 
   let cancelled = false;
 
   async function boot() {
+    // Wait for provider to stabilise — critical for WalletConnect on Android
+    await new Promise(res => setTimeout(res, 1500));
+    if (cancelled) return;
+
     try {
       await provider.getNetwork();
-
+      if (!cancelled) await loadVaultData("initial");
+    } catch (e) {
+      console.warn("Wallet not ready on first attempt, retrying...", e);
+      // Retry once more after another delay
+      await new Promise(res => setTimeout(res, 3000));
       if (!cancelled) {
-        await loadVaultData("initial");
+        try {
+          await loadVaultData("retry");
+        } catch (e2) {
+          console.error("Retry also failed:", e2);
+        }
       }
-    } catch(e) {
-      console.warn("Wallet not ready", e);
     }
   }
 
@@ -161,9 +171,7 @@ useEffect(() => {
     cancelled = true;
     clearInterval(interval);
   };
-
 }, [provider, account, loadVaultData]);
-
   return { vaultData, reloadVaultData: loadVaultData, loading };
 }
 
