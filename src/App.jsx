@@ -22,7 +22,7 @@ export default function App() {
   const isMobile = useIsMobile();
   const wallet = useCoreAscensionWallet();
 
-  const { vaultData, reloadVaultData } = useVaultData(
+  const { vaultData, reloadVaultData, loading } = useVaultData(
     wallet.provider,
     wallet.account
   );
