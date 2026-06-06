@@ -134,3 +134,14 @@ export function useVaultData(provider, account) {
     loading 
   };
 }
+
+async function fetchStakeHistory() {
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    return data.history || [];
+  } catch {
+    return [];
+  }
+}
