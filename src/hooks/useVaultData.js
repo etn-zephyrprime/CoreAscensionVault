@@ -30,6 +30,19 @@ export function useVaultData(provider, account, isConnected) {
 const loadVaultData = useCallback(async (source = "auto") => {
   if (!provider || !account || !isConnected || !mountedRef.current) return;
 
+  // Guard: if we're on the wrong network, don't even try to read contracts
+  try {
+    const network = await provider.getNetwork();
+    const chainId = Number(network.chainId);
+    if (chainId !== 52014) {
+      console.warn(`Wrong network: ${chainId}, expected 52014`);
+      return; // bail out — no point reading contracts on wrong chain
+    }
+  } catch (e) {
+    console.warn("Could not verify network:", e.message);
+    return;
+  }
+  
   try {
     await provider.getNetwork();
   } catch (err) {
