@@ -56,7 +56,7 @@ export const appKitModal = createAppKit({
   projectId: PROJECT_ID,
   metadata,
   enableInjected: false,
-  allowUnsupportedChain: false,   // 👈 add this
+  allowUnsupportedChain: false,
   features: {
     analytics: true,
     email: false,
@@ -64,6 +64,8 @@ export const appKitModal = createAppKit({
   },
 });
 
+// Always points directly at Electroneum RPC — never affected by
+// WalletConnect's chain reporting. Used for all read-only contract calls.
 const readOnlyProvider = new ethers.JsonRpcProvider(RPC_URL);
 
 export function useCoreAscensionWallet() {
@@ -77,29 +79,26 @@ export function useCoreAscensionWallet() {
 
   const { walletProvider } = useAppKitProvider("eip155");
 
-  const provider = useMemo(() => {
-    if (!isConnected || !walletProvider) {
-      return readOnlyProvider;
-    }
-
+  // Signing provider — wraps the wallet's transport, used only for
+  // transactions. May report chain 999 on Android WalletConnect; that's
+  // fine because we never use it for reads.
+  const signingProvider = useMemo(() => {
+    if (!isConnected || !walletProvider) return null;
     try {
       return new ethers.BrowserProvider(walletProvider);
     } catch (err) {
       console.warn("Failed to create BrowserProvider:", err);
-      return readOnlyProvider;
+      return null;
     }
   }, [isConnected, walletProvider]);
 
-const connectWallet = useCallback(async () => {
-  try {
-    await open({
-      view: "Connect",
-      namespace: "eip155",
-    });
-  } catch (err) {
-    console.error("Connect wallet failed:", err);
-  }
-}, [open]);
+  const connectWallet = useCallback(async () => {
+    try {
+      await open({ view: "Connect", namespace: "eip155" });
+    } catch (err) {
+      console.error("Connect wallet failed:", err);
+    }
+  }, [open]);
 
   const disconnectWallet = useCallback(async () => {
     try {
@@ -113,26 +112,26 @@ const connectWallet = useCallback(async () => {
     if (!isConnected || !walletProvider) {
       throw new Error("Wallet not connected");
     }
-
     const currentChainId = caipNetwork?.id ? Number(caipNetwork.id) : null;
-
     if (currentChainId !== CHAIN_ID) {
       await switchNetwork(electroneum);
     }
   }, [isConnected, walletProvider, caipNetwork?.id, switchNetwork]);
 
+  // Always creates a fresh BrowserProvider for signing so the signer
+  // is never stale after a reconnect.
   const getSigner = useCallback(async () => {
     if (!isConnected || !walletProvider) {
       throw new Error("Wallet not connected");
     }
-
     const browserProvider = new ethers.BrowserProvider(walletProvider);
     return browserProvider.getSigner();
   }, [isConnected, walletProvider]);
 
   return {
-    provider,
-    walletProvider,
+    provider: readOnlyProvider,   // ✅ reads  — always chain 52014
+    signingProvider,              // ✅ writes — BrowserProvider via wallet
+    walletProvider,               // raw transport, if needed directly
     account: address || null,
     isConnected,
     walletStatus: status,

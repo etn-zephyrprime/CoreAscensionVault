@@ -114,7 +114,7 @@ export default function VaultPosition({
     if (!wallet?.provider || !wallet?.account) return null;
 
     try {
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.signingProvider);
       const user = await staking.getUser(wallet.account);
 
       const result = previewPenaltyFromContract({
@@ -152,7 +152,7 @@ export default function VaultPosition({
   async function loadCoreApprovalData() {
     if (!wallet?.provider || !wallet?.account) return;
     try {
-      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, wallet.provider);
+      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, wallet.signingProvider);
       const [allowance, balance] = await Promise.all([
         core.allowance(wallet.account, STAKING_ADDRESS),
         core.balanceOf(wallet.account),
@@ -166,7 +166,7 @@ export default function VaultPosition({
 
   useEffect(() => {
     loadCoreApprovalData();
-  }, [wallet?.provider, wallet?.account]);
+  }, [wallet?.signingProvider, wallet?.account]);
 
   const parsedStakeAmount = useMemo(() => {
     try {
