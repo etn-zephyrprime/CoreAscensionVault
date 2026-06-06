@@ -3,8 +3,8 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
-import STAKING_ADDRESS from "../config.js";
-import stakingABI from '../../src/abis/stakingABI.json' with { type: 'json' };
+import { STAKING_ADDRESS } from "../config.js";
+import { stakingABI } from '../../src/abis/stakingABI.json' with { type: 'json' };
 
 const stakingContract = new ethers.Contract(
   STAKING_ADDRESS,
