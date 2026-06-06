@@ -3,22 +3,16 @@ import { AlertTriangle } from "lucide-react";
 
 import Panel from "./Panel.jsx";
 import NeonButton from "./NeonButton.jsx";
-import {
-  green,
-  greenGlow,
-  panel,
-  panel2,
-  muted,
-} from "../styles/theme.js";
+import { green, greenGlow, panel, panel2, muted } from "../styles/theme.js";
 
 import { ethers } from "ethers";
-import { STAKING_ADDRESS } from "../config.js";
+import { STAKING_ADDRESS, CORE_TOKEN } from "../config.js";
 import stakingABI from "../abis/stakingABI.json";
-import { CORE_TOKEN } from "../config.js";
 import ERC20ABI from "../abis/ERC20ABI.json";
 
 function formatNumber(value, decimals = 2) {
-  return Number(value || 0).toLocaleString(undefined, {
+  const num = Number(value || 0);
+  return isNaN(num) ? "0" : num.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
@@ -53,40 +47,95 @@ function miniValueStyle(color) {
   };
 }
 
-function miniSubStyle() {
-  return {
-    fontSize: 11,
-    color: "#777",
-    marginTop: 5,
-  };
-}
-
 export default function VaultPosition({
   vaultData,
   wallet,
   isMobile,
   reloadVaultData,
 }) {
-
-  const [stakeAmount, setStakeAmount] = useState("10000");
+  const [stakeAmount, setStakeAmount] = useState("0");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [showPenaltyInfo, setShowPenaltyInfo] = useState(true);
+  const [penaltyPreview, setPenaltyPreview] = useState(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   const data = vaultData || {};
 
-  const boostLabel = useMemo(() => `${(data.boost || 1).toFixed(2)}x`, [data.boost]);
+  const coreStaked = Number(data.coreStaked || 0);
+  const nftCount = Number(data.nftCount || 0);
+  const earnedCore = Number(data.earnedCore || 0);
+  const userShare = Number(data.userShare || 0);
+  const boost = Number(data.boost || 1);
 
-  const hasPosition = Number(data.coreStaked || 0) > 0 || Number(data.nftCount || 0) > 0;
-  const penaltyDaysRemaining = Number(data.penaltyDaysRemaining || 0);
-  const [penaltyPreview, setPenaltyPreview] = useState(null);
+  const hasPosition = coreStaked > 0 || nftCount > 0;
 
-  const earlyExitTitle = !hasPosition
-    ? "No Position"
-    : data.earlyExit ? "Active" : "Protected";
+  const boostLabel = useMemo(() => `${boost.toFixed(2)}x`, [boost]);
 
+  const maxStakeable = Math.max(0, Math.min(Number(data.coreBalance || 0), 10000 - coreStaked));
+
+  // ====================== PENALTY PREVIEW ======================
+  async function previewEarlyPenalty(amountWei = 0n) {
+    if (!wallet?.provider || !wallet?.account) return null;
+    setLoadingPreview(true);
+
+    try {
+      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, wallet.provider);
+      const user = await staking.getUser(wallet.account);
+
+      // Use local preview logic (more reliable)
+      const result = previewPenaltyFromContract({
+        amountWei,
+        earnedWei: user.pendingRewards,
+        isEarly: user.currentlyEarly,
+      });
+
+      return {
+        returnedAmount: ethers.formatEther(result.returnedAmount),
+        penaltyToPool: ethers.formatEther(result.penaltyToPool),
+        penaltyBurned: ethers.formatEther(result.penaltyBurned),
+        slashAmount: ethers.formatEther(result.slashAmount),
+        rewardAfterSlash: ethers.formatEther(result.rewardAfterSlash),
+      };
+    } catch (err) {
+      console.error("Penalty preview failed:", err);
+      return null;
+    } finally {
+      setLoadingPreview(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!data.earlyExit || !wallet?.account || coreStaked <= 0) {
+      setPenaltyPreview(null);
+      return;
+    }
+
+    const amountWei = ethers.parseEther(coreStaked.toString());
+    previewEarlyPenalty(amountWei).then(setPenaltyPreview);
+  }, [data.earlyExit, coreStaked, wallet?.account]);
+
+  // ====================== APPROVAL & BALANCE ======================
   const [coreAllowance, setCoreAllowance] = useState(0n);
   const [coreBalance, setCoreBalance] = useState(0);
-  const [txLoading, setTxLoading] = useState(false);
+
+  async function loadCoreApprovalData() {
+    if (!wallet?.provider || !wallet?.account) return;
+    try {
+      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, wallet.provider);
+      const [allowance, balance] = await Promise.all([
+        core.allowance(wallet.account, STAKING_ADDRESS),
+        core.balanceOf(wallet.account),
+      ]);
+      setCoreAllowance(allowance);
+      setCoreBalance(Number(ethers.formatEther(balance)));
+    } catch (err) {
+      console.error("loadCoreApprovalData failed:", err);
+    }
+  }
+
+  useEffect(() => {
+    loadCoreApprovalData();
+  }, [wallet?.provider, wallet?.account]);
 
   const parsedStakeAmount = useMemo(() => {
     try {
@@ -104,290 +153,28 @@ export default function VaultPosition({
     }
   }, [withdrawAmount]);
 
-function previewPenaltyFromContract({
-  amountWei,
-  earnedWei,
-  isEarly,
-}) {
-  if (!isEarly) {
-    return {
-      returnedAmount: amountWei,
-      penaltyToPool: 0n,
-      penaltyBurned: 0n,
-      slashAmount: 0n,
-      rewardAfterSlash: earnedWei,
-    };
-  }
+  const needsApproval = wallet?.account && parsedStakeAmount > 0n && coreAllowance < parsedStakeAmount;
 
-  // --- CORE withdrawal penalty (15%) ---
-  const stakePenalty = (amountWei * 1500n) / 10000n;
-  const returnedAmount = amountWei - stakePenalty;
-
-  const penaltyToPool = (stakePenalty * 2n) / 3n;
-  const penaltyBurned = stakePenalty - penaltyToPool;
-
-  // --- reward slash (50%) ---
-  const slashAmount = (earnedWei * 5000n) / 10000n;
-  const rewardAfterSlash = earnedWei - slashAmount;
-
-  return {
-    returnedAmount,
-    penaltyToPool,
-    penaltyBurned,
-    slashAmount,
-    rewardAfterSlash,
-  };
-}
-
-const needsApproval =
-  wallet.account &&
-  parsedStakeAmount > 0n &&
-  coreAllowance < parsedStakeAmount;
-
-  async function loadCoreApprovalData() {
-    try {
-      if (!wallet.provider || !wallet.account) return;
-      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, wallet.provider);
-      const [allowance, balance] = await Promise.all([
-        core.allowance(wallet.account, STAKING_ADDRESS),
-        core.balanceOf(wallet.account),
-      ]);
-      setCoreAllowance(allowance);
-      setCoreBalance(Number(ethers.formatEther(balance)));
-    } catch (err) {
-      console.error("loadCoreApprovalData failed:", err);
+  // ====================== LOCAL PENALTY CALCULATION ======================
+  function previewPenaltyFromContract({ amountWei, earnedWei, isEarly }) {
+    if (!isEarly) {
+      return { returnedAmount: amountWei, penaltyToPool: 0n, penaltyBurned: 0n, slashAmount: 0n, rewardAfterSlash: earnedWei };
     }
+
+    const stakePenalty = (amountWei * 1500n) / 10000n;
+    const returnedAmount = amountWei - stakePenalty;
+    const penaltyToPool = (stakePenalty * 2n) / 3n;
+    const penaltyBurned = stakePenalty - penaltyToPool;
+
+    const slashAmount = (earnedWei * 5000n) / 10000n;
+    const rewardAfterSlash = earnedWei - slashAmount;
+
+    return { returnedAmount, penaltyToPool, penaltyBurned, slashAmount, rewardAfterSlash };
   }
 
-  useEffect(() => {
-    loadCoreApprovalData();
-  }, [wallet.provider, wallet.account]);
-
-  // ====================== SAFE PENALTY PREVIEW ======================
-async function previewEarlyPenalty(amountWei = 0n) {
-  try {
-    const staking = new ethers.Contract(
-      STAKING_ADDRESS,
-      stakingABI,
-      wallet.provider
-    );
-
-    const user = await staking.getUser(wallet.account);
-
-    const result = previewPenaltyFromContract({
-      amountWei,
-      earnedWei: user.pendingRewards,
-      isEarly: user.currentlyEarly,
-    });
-
-    return {
-      returnedAmount: ethers.formatEther(result.returnedAmount),
-      penaltyToPool: ethers.formatEther(result.penaltyToPool),
-      penaltyBurned: ethers.formatEther(result.penaltyBurned),
-      slashAmount: ethers.formatEther(result.slashAmount),
-      rewardAfterSlash: ethers.formatEther(result.rewardAfterSlash),
-    };
-
-  } catch (err) {
-    console.error("Penalty preview failed:", err);
-    return null;
-  }
-}
-
-useEffect(() => {
-  if (!data.earlyExit || !wallet.account) {
-    setPenaltyPreview(null);
-    return;
-  }
-
-  (async () => {
-    const preview = await previewEarlyPenalty(
-      BigInt(ethers.parseEther(String(data.coreStaked || 0)))
-    );
-
-    setPenaltyPreview(preview);
-  })();
-
-}, [data.earlyExit, data.coreStaked, wallet.account]);
-
-  // ====================== ACTIONS ======================
-  async function approveCore() {
-    try {
-      setTxLoading(true);
-      await wallet.ensureCorrectNetwork();
-      const signer = await wallet.getSigner();
-      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, signer);
-      const tx = await core.approve(STAKING_ADDRESS, parsedStakeAmount);
-      await tx.wait();
-      await loadCoreApprovalData();
-      alert("CORE approved.");
-    } catch (err) {
-      alert(err?.shortMessage || err?.reason || "Approve failed");
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  async function stakeCore() {
-    try {
-      if (Number(vaultData?.nftCount || 0) <= 0) return alert("Stake at least 1 NFT first.");
-      if (parsedStakeAmount <= 0n) return alert("Enter amount.");
-
-      setTxLoading(true);
-      await wallet.ensureCorrectNetwork();
-      const signer = await wallet.getSigner();
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
-      const tx = await staking.stakeCore(parsedStakeAmount, { gasLimit: 350000 });
-      await tx.wait();
-
-      await reloadVaultData();
-      await loadCoreApprovalData();
-      alert("✅ CORE staked successfully!");
-    } catch (err) {
-      console.error(err);
-      alert(err?.shortMessage || err?.reason || "Stake failed");
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  async function claimRewards() {
-    try {
-      if (Number(vaultData?.earnedCore || 0) <= 0) {
-        return alert("No rewards available.");
-      }
-
-      let warning = "Claim CORE rewards?";
-
-      if (data.earlyExit) {
-        const preview = await previewEarlyPenalty(0n);
-        if (preview && Number(preview.slashAmount) > 0) {
-          warning = `⚠️ 50% REWARD PENALTY ACTIVE\n\n` +
-            `Before: ${Number(preview.rewardBeforeSlash).toFixed(4)} CORE\n` +
-            `Slash : ${Number(preview.slashAmount).toFixed(4)} CORE\n` +
-            `You get: ${Number(preview.rewardAfterSlash).toFixed(4)} CORE\n\nContinue?`;
-        }
-      }
-
-      const confirmed = window.confirm(warning);
-      if (!confirmed) return;
-
-      setTxLoading(true);
-      await wallet.ensureCorrectNetwork();
-
-      const signer = await wallet.getSigner();
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
-      console.log("🔄 Sending claim transaction...");
-
-      const tx = await staking.claim({
-        gasLimit: 500000   // Increased significantly
-      });
-
-      console.log("📤 Claim tx sent:", tx.hash);
-
-      const receipt = await tx.wait();
-      console.log("✅ Claim successful! Block:", receipt.blockNumber);
-
-      await reloadVaultData();
-      alert("✅ Rewards claimed successfully!");
-    } catch (err) {
-      console.error("❌ Claim error full details:", err);
-
-      let userMessage = "Claim failed";
-
-      if (err?.shortMessage) userMessage = err.shortMessage;
-      else if (err?.reason) userMessage = err.reason;
-      else if (err?.data?.message) userMessage = err.data.message;
-      else if (err.message) userMessage = err.message;
-
-      alert(userMessage);
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  async function withdrawCore() {
-    try {
-      if (parsedWithdrawAmount <= 0n) return alert("Enter amount to withdraw.");
-
-      let warning = `Withdraw ${withdrawAmount} CORE?`;
-
-      if (data.earlyExit) {
-        const preview = await previewEarlyPenalty(parsedWithdrawAmount);
-        if (preview && Number(preview.penaltyToPool) > 0) {
-          warning = `⚠️ 15% EARLY WITHDRAWAL PENALTY\n\n` +
-            `Requested : ${withdrawAmount} CORE\n` +
-            `You receive: ${Number(preview.returnedAmount).toFixed(4)} CORE\n` +
-            `To pool   : ${Number(preview.penaltyToPool).toFixed(4)} CORE\n\nContinue?`;
-        }
-      }
-
-      if (!window.confirm(warning)) return;
-
-      setTxLoading(true);
-      await wallet.ensureCorrectNetwork();
-
-      const signer = await wallet.getSigner();
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
-      const tx = await staking.withdrawCore(parsedWithdrawAmount, { gasLimit: 450000 });
-      await tx.wait();
-
-      await reloadVaultData();
-      await loadCoreApprovalData();
-      setWithdrawAmount("");
-      alert("✅ CORE withdrawn successfully.");
-    } catch (err) {
-      console.error("Withdraw error:", err);
-      alert(err?.shortMessage || err?.reason || err?.message || "Withdraw failed");
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  async function exitVault() {
-    try {
-      let warning = "Exit the vault completely?";
-
-      if (data.earlyExit) {
-        const fullAmount = ethers.parseEther(String(vaultData?.coreStaked || 0));
-        const preview = await previewEarlyPenalty(fullAmount);
-        if (preview) {
-          warning = `⚠️ EARLY EXIT PENALTIES ACTIVE\n\n` +
-            `CORE received : ${Number(preview.returnedAmount).toFixed(4)}\n` +
-            `Rewards after slash : ${Number(preview.rewardAfterSlash).toFixed(4)}\n\nContinue?`;
-        }
-      }
-
-      if (!window.confirm(warning)) return;
-
-      setTxLoading(true);
-      await wallet.ensureCorrectNetwork();
-
-      const signer = await wallet.getSigner();
-      const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, signer);
-
-      const tx = await staking.exit({ gasLimit: 600000 });
-      await tx.wait();
-
-      await reloadVaultData();
-      await loadCoreApprovalData();
-      alert("✅ Exited vault successfully.");
-    } catch (err) {
-      console.error("Exit error:", err);
-      alert(err?.shortMessage || err?.reason || err?.message || "Exit failed");
-    } finally {
-      setTxLoading(false);
-    }
-  }
-
-  const maxStakeable = Math.max(0, Math.min(Number(coreBalance || 0), 10000 - Number(vaultData?.coreStaked || 0)));
-
+  // ====================== RENDER ======================
   return (
     <Panel style={{ background: panel2 }}>
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
         <h2 style={{ fontSize: isMobile ? 20 : 24, color: green, margin: 0, textTransform: "uppercase", textShadow: `0 0 8px ${greenGlow}` }}>
           Your Vault Position
@@ -401,63 +188,41 @@ useEffect(() => {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>CORE Staked</div>
-          <div style={miniValueStyle("#fff")}>{formatNumber(data.coreStaked, 2)}</div>
+          <div style={miniValueStyle("#fff")}>{formatNumber(coreStaked, 2)}</div>
         </div>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>Earned CORE</div>
-          <div style={miniValueStyle(green)}>{formatNumber(data.earnedCore, 4)}</div>
+          <div style={miniValueStyle(green)}>{formatNumber(earnedCore, 4)}</div>
         </div>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>Pool Share</div>
-          <div style={miniValueStyle("#ffcc66")}>{formatNumber(data.userShare, 2)}%</div>
+          <div style={miniValueStyle("#ffcc66")}>{formatNumber(userShare, 2)}%</div>
         </div>
       </div>
 
       {/* Penalty Info */}
       <div style={{ border: "1px solid #6b4a00", borderRadius: 8, background: "#1a1200", marginBottom: 16, overflow: "hidden" }}>
         <div onClick={() => setShowPenaltyInfo(v => !v)} style={{ padding: "9px 10px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#ffcc66", fontWeight: 900 }}>
-          <span><AlertTriangle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} /> Early Exit {earlyExitTitle}</span>
+          <span><AlertTriangle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} /> Early Exit {hasPosition ? (data.earlyExit ? "Active" : "Protected") : "No Position"}</span>
           <span>{showPenaltyInfo ? "▲" : "▼"}</span>
         </div>
+
         {showPenaltyInfo && (
           <div style={{ padding: "8px 10px", fontSize: 12, color: "#ffcc66" }}>
-{data.earlyExit ? (
-  <>
-    <div>
-      {penaltyDaysRemaining} day(s) left in 60-day penalty window.
-    </div>
-
-    {penaltyPreview && (
-      <div
-        style={{
-          marginTop: 10,
-          padding: 10,
-          background: "#110800",
-          borderRadius: 8,
-          border: "1px solid #8a5a00",
-          color: "#ffcc66",
-        }}
-      >
-        <div>
-          CORE penalty:{" "}
-          {Number(penaltyPreview.penaltyToPool).toFixed(4)}
-        </div>
-
-        <div>
-          Reward slash:{" "}
-          {Number(penaltyPreview.slashAmount).toFixed(4)}
-        </div>
-
-        <div>
-          Rewards received:{" "}
-          {Number(penaltyPreview.rewardAfterSlash).toFixed(4)}
-        </div>
-      </div>
-    )}
-  </>
-) : (
-  "No early exit penalty active."
-)}
+            {data.earlyExit && hasPosition ? (
+              <>
+                <div>{Number(data.penaltyDaysRemaining || 0)} day(s) left in 60-day penalty window.</div>
+                {penaltyPreview && (
+                  <div style={{ marginTop: 10, padding: 10, background: "#110800", borderRadius: 8, border: "1px solid #8a5a00" }}>
+                    <div>CORE penalty: {Number(penaltyPreview.penaltyToPool).toFixed(4)}</div>
+                    <div>Reward slash: {Number(penaltyPreview.slashAmount).toFixed(4)}</div>
+                    <div>Rewards received: {Number(penaltyPreview.rewardAfterSlash).toFixed(4)}</div>
+                  </div>
+                )}
+              </>
+            ) : (
+              "No early exit penalty active."
+            )}
           </div>
         )}
       </div>
@@ -487,12 +252,12 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Buttons */}
+{/* Buttons */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: isMobile ? 8 : 12 }}>
-        <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || Number(vaultData?.nftCount || 0) <= 0} style={{ flex: 1 }}>
+        <NeonButton variant="blue" onClick={needsApproval ? approveCore : stakeCore} disabled={txLoading || !wallet.account || parsedStakeAmount <= 0n || nftCount <= 0} style={{ flex: 1 }}>
           {txLoading ? "Processing..." : needsApproval ? "Approve CORE" : "Stake CORE"}
         </NeonButton>
-
+        
         <NeonButton variant="green" onClick={claimRewards} disabled={!wallet.account || Number(vaultData?.earnedCore || 0) <= 0} style={{ flex: 1 }}>
           Claim Rewards
         </NeonButton>

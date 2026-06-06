@@ -218,14 +218,19 @@ const enrichedHistory = [...cleanedHistory]
                 fontSize={isMobile ? 10 : 11}
               />
 
+{/* Right Y-Axis - Fixed 0% to 200% */}
               <YAxis
                 yAxisId="right"
                 tickFormatter={(v) => `${v.toFixed(0)}%`}
                 orientation="right"
                 stroke="#00d4ff"
                 fontSize={isMobile ? 10 : 11}
+                domain={[0, 200]}           // ← This is the key change
+                allowDataOverflow={false}
+                allowDecimals={false}
+                ticks={[0, 50, 100, 150, 200]}   // Nice clean ticks
               />
-
+              
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#111",
