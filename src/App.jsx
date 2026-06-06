@@ -125,6 +125,7 @@ export default function App() {
             wallet={wallet}
             isMobile={isMobile}
             reloadVaultData={reloadVaultData}
+            loading={loading}
           />
         </div>
 

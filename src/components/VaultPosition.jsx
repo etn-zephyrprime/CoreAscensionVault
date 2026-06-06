@@ -52,6 +52,7 @@ export default function VaultPosition({
   wallet,
   isMobile,
   reloadVaultData,
+  loading = false,
 }) {
   const [stakeAmount, setStakeAmount] = useState("0");
   const [withdrawAmount, setWithdrawAmount] = useState("");
@@ -395,8 +396,8 @@ export default function VaultPosition({
         </div>
       </div>
 
-{/* Loading Indicator */}
-      {loading && (
+      {/* Loading Indicator */}
+      {loading !== undefined && loading && (
         <div style={{
           textAlign: "center",
           padding: "20px 0",
@@ -407,7 +408,7 @@ export default function VaultPosition({
           🔄 Loading your position...
         </div>
       )}
-      
+
       {/* Mini Stats */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
