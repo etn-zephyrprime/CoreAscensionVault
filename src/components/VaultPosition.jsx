@@ -58,33 +58,50 @@ export default function VaultPosition({
   const [showPenaltyInfo, setShowPenaltyInfo] = useState(true);
   const [penaltyPreview, setPenaltyPreview] = useState(null);
   const [txLoading, setTxLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-const [refreshing, setRefreshing] = useState(false);
+  // Robust Refresh Handler
+  async function handleRefresh() {
+    if (!reloadVaultData || refreshing) return;
 
-async function handleRefresh() {
-  if (!reloadVaultData) return;
-  setRefreshing(true);
-  try {
-    await reloadVaultData();
-  } finally {
-    setRefreshing(false);
+    setRefreshing(true);
+    console.log("🔄 Manual refresh triggered on mobile");
+
+    try {
+      const timeout = setTimeout(() => {
+        console.warn("Refresh timed out after 12 seconds");
+        setRefreshing(false);
+      }, 12000);
+
+      await reloadVaultData();
+      clearTimeout(timeout);
+      console.log("✅ Refresh completed");
+    } catch (err) {
+      console.error("Refresh error:", err);
+      alert("Refresh failed. Please reconnect wallet or try again.");
+    } finally {
+      setRefreshing(false);
+    }
   }
-}
 
-// Force refresh when vaultData changes (important for WalletConnect)
+  // Debug logging
   useEffect(() => {
-    console.log("🔄 VaultPosition received new vaultData:", vaultData); // ← Debug log
-  }, [vaultData]);
+    console.log("📊 Vault Data:", {
+      hasData: !!vaultData,
+      coreStaked: vaultData?.coreStaked,
+      nftCount: vaultData?.nftCount,
+      earned: vaultData?.earnedCore,
+      wallet: !!wallet?.account
+    });
+  }, [vaultData, wallet]);
 
   const data = vaultData || {};
 
-  // Safe numeric extraction with fallback
   const coreStaked = Math.max(0, Number(data.coreStaked || 0));
   const nftCount = Math.max(0, Number(data.nftCount || 0));
   const earnedCore = Math.max(0, Number(data.earnedCore || 0));
   const userShare = Math.max(0, Number(data.userShare || 0));
   const boost = Math.max(1, Number(data.boost || 1));
-  const penaltyDaysRemaining = Math.max(0, Number(data.penaltyDaysRemaining || 0));
 
   const hasPosition = coreStaked > 0 || nftCount > 0;
   const boostLabel = useMemo(() => `${boost.toFixed(2)}x`, [boost]);
@@ -331,68 +348,54 @@ async function handleRefresh() {
     }
   }
 
+// Auto retry on mobile
+  useEffect(() => {
+    if (isMobile && wallet?.account && coreStaked === 0 && reloadVaultData) {
+      const timer = setTimeout(() => {
+        console.log("📱 Auto-retrying data load on mobile");
+        reloadVaultData();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isMobile, wallet?.account, coreStaked, reloadVaultData]);
+
   // ====================== RENDER ======================
-// ====================== RENDER ======================
   return (
     <Panel style={{ background: panel2 }}>
-      {/* Header with Refresh Button */}
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        alignItems: "center", 
-        flexWrap: "wrap", 
-        gap: 8, 
-        marginBottom: 12 
-      }}>
-        <h2 style={{ 
-          fontSize: isMobile ? 20 : 24, 
-          color: green, 
-          margin: 0, 
-          textTransform: "uppercase", 
-          textShadow: `0 0 8px ${greenGlow}` 
-        }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        <h2 style={{ fontSize: isMobile ? 20 : 24, color: green, margin: 0, textTransform: "uppercase", textShadow: `0 0 8px ${greenGlow}` }}>
           Your Vault Position
         </h2>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-{/* Refresh Button */}
-<button
-  onClick={handleRefresh}
-  disabled={refreshing || !reloadVaultData}
-  style={{
-    padding: "6px 12px",
-    background: "#1a1a1a",
-    border: "1px solid #444",
-    borderRadius: 8,
-    color: "#aaa",
-    fontSize: 13,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-  }}
-  onMouseOver={(e) => (e.currentTarget.style.borderColor = green)}
-  onMouseOut={(e) => (e.currentTarget.style.borderColor = "#444")}
->
-  {refreshing ? "🔄 Refreshing..." : "↻ Refresh"}
-</button>
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            style={{
+              padding: "6px 12px",
+              background: "#1a1a1a",
+              border: "1px solid #444",
+              borderRadius: 8,
+              color: "#aaa",
+              fontSize: 13,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.borderColor = green)}
+            onMouseOut={(e) => (e.currentTarget.style.borderColor = "#444")}
+          >
+            {refreshing ? "🔄 Refreshing..." : "↻ Refresh"}
+          </button>
 
-          {/* Boost Badge */}
-          <div style={{ 
-            padding: "8px 12px", 
-            borderRadius: 999, 
-            border: "1px solid #6b4a00", 
-            background: "#1a1200", 
-            color: "#ffcc66", 
-            fontSize: 13, 
-            fontWeight: 900 
-          }}>
+          <div style={{ padding: "8px 12px", borderRadius: 999, border: "1px solid #6b4a00", background: "#1a1200", color: "#ffcc66", fontSize: 13, fontWeight: 900 }}>
             Boost {boostLabel}
           </div>
         </div>
       </div>
 
-      {/* Mini Stats - Always show even if zero */}
+      {/* Mini Stats */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>CORE Staked</div>
@@ -407,7 +410,7 @@ async function handleRefresh() {
           <div style={miniValueStyle("#ffcc66")}>{formatNumber(userShare, 2)}%</div>
         </div>
       </div>
-
+      
       {/* Penalty Info */}
       <div style={{ border: "1px solid #6b4a00", borderRadius: 8, background: "#1a1200", marginBottom: 16, overflow: "hidden" }}>
         <div onClick={() => setShowPenaltyInfo(v => !v)} style={{ padding: "9px 10px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#ffcc66", fontWeight: 900 }}>
