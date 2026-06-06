@@ -25,44 +25,47 @@ export function useVaultData(provider, account) {
   const [vaultData, setVaultData] = useState(fallbackVault);
   const [loading, setLoading] = useState(false);
 
-  const loadVaultData = useCallback(async () => {
-    if (!provider) return;
+  const loadVaultData = useCallback(async (source = "auto") => {
+    if (!provider || !account) {
+      console.log(`⏳ [${source}] Waiting for provider + account...`);
+      return;
+    }
 
     setLoading(true);
-    console.log("🔄 loadVaultData called for account:", account);
+    console.log(`🔄 [${source}] Loading vault data for`, account);
 
     try {
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
       const drip = new ethers.Contract(DRIP_FUNDER_ADDRESS, dripABI, provider);
 
-      // ================= GLOBAL STATS =================
-      const [totalCoreStakedRaw, totalCoreBurnedRaw, rewardPerBlockRaw, endBlockRaw, nextDripSecondsRaw, currentBlock] =
-        await Promise.allSettled([
-          staking.totalCoreStaked(),
-          staking.totalCoreBurned(),
-          staking.rewardPerBlock(),
-          staking.endBlock(),
-          drip.nextDripIn(),
-          provider.getBlockNumber(),
-        ]).then(results => results.map(r => r.status === "fulfilled" ? r.value : 0));
+      // Global stats
+      const globalResults = await Promise.allSettled([
+        staking.totalCoreStaked(),
+        staking.totalCoreBurned(),
+        staking.rewardPerBlock(),
+        staking.endBlock(),
+        drip.nextDripIn?.() || Promise.resolve(0),
+        provider.getBlockNumber(),
+      ]);
 
-      const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
-      const blocksRemaining = Math.max(0, Number(endBlockRaw) - Number(currentBlock));
-      const rewardsRemaining = blocksRemaining > 0 
-        ? Number(ethers.formatEther(BigInt(blocksRemaining) * rewardPerBlockRaw)) 
+      const totalCoreStaked = Number(ethers.formatEther(globalResults[0].status === "fulfilled" ? globalResults[0].value : 0));
+      const blocksRemaining = Math.max(0, Number(globalResults[3].status === "fulfilled" ? globalResults[3].value : 0) - Number(globalResults[5].status === "fulfilled" ? globalResults[5].value : 0));
+
+      const rewardsRemaining = blocksRemaining > 0 && globalResults[2].status === "fulfilled"
+        ? Number(ethers.formatEther(BigInt(blocksRemaining) * globalResults[2].value))
         : 0;
 
-      const currentApr = totalCoreStaked > 0 
-        ? ((Number(ethers.formatEther(rewardPerBlockRaw)) * 6_307_200) / totalCoreStaked) * 100 
+      const currentApr = totalCoreStaked > 0 && globalResults[2].status === "fulfilled"
+        ? ((Number(ethers.formatEther(globalResults[2].value)) * 6_307_200) / totalCoreStaked) * 100
         : 0;
 
-      const daysRemaining = Math.floor((blocksRemaining * 5) / 86400);
-
-      // ================= USER DATA =================
+      // User data
       let userData = {};
       if (account) {
         try {
           const user = await staking.getUser(account);
+          console.log("✅ getUser success on mobile:", user);
+
           const minStakeTime = await staking.MIN_STAKE_TIME();
 
           const coreStaked = Number(ethers.formatEther(user[0] || 0));
@@ -73,9 +76,7 @@ export function useVaultData(provider, account) {
           const boostBps = Number(user[6] || 0);
 
           const now = Math.floor(Date.now() / 1000);
-          const penaltySeconds = entryTime > 0 
-            ? Math.max(0, entryTime + Number(minStakeTime) - now) 
-            : 0;
+          const penaltySeconds = entryTime > 0 ? Math.max(0, entryTime + Number(minStakeTime) - now) : 0;
 
           userData = {
             coreStaked: Number(coreStaked.toFixed(4)),
@@ -87,23 +88,21 @@ export function useVaultData(provider, account) {
             userShare: totalCoreStaked > 0 ? (coreStaked / totalCoreStaked) * 100 : 0,
           };
         } catch (e) {
-          console.warn("User data fetch failed:", e.message);
+          console.warn("⚠️ getUser failed on mobile:", e.message);
         }
       }
 
-      // ================= FINAL DATA =================
       const nextVaultData = {
         ...fallbackVault,
         ...userData,
         totalCoreStaked: Number(totalCoreStaked.toFixed(2)),
         rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
-        daysRemaining: Math.max(0, daysRemaining),
+        daysRemaining: Math.max(0, Math.floor((blocksRemaining * 5) / 86400)),
         currentApr: Number(currentApr.toFixed(2)),
-        totalCoreBurned: 5 + Number(ethers.formatEther(totalCoreBurnedRaw)),
-        nextDripSeconds: Number(nextDripSecondsRaw),
+        totalCoreBurned: 5 + Number(ethers.formatEther(globalResults[1].status === "fulfilled" ? globalResults[1].value : 0)),
       };
 
-      console.log("✅ Final vaultData:", nextVaultData);
+      console.log("✅ Final vaultData on mobile:", nextVaultData);
       setVaultData(nextVaultData);
 
     } catch (err) {
@@ -113,13 +112,19 @@ export function useVaultData(provider, account) {
     }
   }, [provider, account]);
 
+  // Initial + polling
   useEffect(() => {
     if (provider && account) {
-      loadVaultData();
-      const interval = setInterval(loadVaultData, 45000);
-      return () => clearInterval(interval);
+      // Small delay for WalletConnect on mobile
+      const timer = setTimeout(() => loadVaultData("initial"), 800);
+      const interval = setInterval(() => loadVaultData("poll"), 60000);
+
+      return () => {
+        clearTimeout(timer);
+        clearInterval(interval);
+      };
     }
-  }, [loadVaultData]);
+  }, [provider, account, loadVaultData]);
 
   return { vaultData, reloadVaultData: loadVaultData, loading };
 }
