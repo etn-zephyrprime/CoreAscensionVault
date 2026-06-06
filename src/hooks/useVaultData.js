@@ -16,7 +16,7 @@ const fallbackVault = {
   earlyExit: false,
   penaltyDaysRemaining: 0,
   userShare: 0,
-  totalCoreBurned: 5,           // ← Base 5 CORE from previous contract
+  totalCoreBurned: 5,
   stakeHistory: [],
   nextDripSeconds: 0,
 };
@@ -26,58 +26,51 @@ export function useVaultData(provider, account) {
   const [loading, setLoading] = useState(false);
 
   const loadVaultData = useCallback(async () => {
-    if (!provider) return;
+    if (!provider) {
+      console.log("⏳ No provider yet");
+      return;
+    }
 
     setLoading(true);
+    console.log("🔄 Loading vault data... Account:", account);
+
     try {
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
       const drip = new ethers.Contract(DRIP_FUNDER_ADDRESS, dripABI, provider);
 
-      const [totalCoreStakedRaw, totalCoreBurnedRaw, rewardPerBlockRaw, endBlockRaw, nextDripSecondsRaw] =
-        await Promise.allSettled([
-          staking.totalCoreStaked(),
-          staking.totalCoreBurned(),
-          staking.rewardPerBlock(),
-          staking.endBlock(),
-          drip.nextDripIn(),
-        ]).then(results => results.map(r => r.status === "fulfilled" ? r.value : 0));
+      // Global stats
+      const globalPromises = await Promise.allSettled([
+        staking.totalCoreStaked(),
+        staking.totalCoreBurned(),
+        staking.rewardPerBlock(),
+        staking.endBlock(),
+        drip.nextDripIn(),
+        provider.getBlockNumber(),
+      ]);
 
-      const currentBlock = await provider.getBlockNumber().catch(() => 0);
-
-      const blocksRemaining = Math.max(0, Number(endBlockRaw) - currentBlock);
+      const totalCoreStakedRaw = globalPromises[0].status === "fulfilled" ? globalPromises[0].value : 0;
+      const totalCoreBurnedRaw = globalPromises[1].status === "fulfilled" ? globalPromises[1].value : 0;
+      const rewardPerBlockRaw = globalPromises[2].status === "fulfilled" ? globalPromises[2].value : 0;
+      const endBlockRaw = globalPromises[3].status === "fulfilled" ? globalPromises[3].value : 0;
+      const nextDripSecondsRaw = globalPromises[4].status === "fulfilled" ? globalPromises[4].value : 0;
+      const currentBlock = globalPromises[5].status === "fulfilled" ? globalPromises[5].value : 0;
 
       const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
-      const onChainBurned = Number(ethers.formatEther(totalCoreBurnedRaw));
-      const nextDripSeconds = Number(nextDripSecondsRaw);
-
-      // Rewards Remaining
-      let rewardsRemaining = 0;
-      if (blocksRemaining > 0) {
-        rewardsRemaining = Number(ethers.formatEther(BigInt(blocksRemaining) * rewardPerBlockRaw));
-      }
-
-      const currentApr = totalCoreStaked > 0
-        ? ((Number(ethers.formatEther(rewardPerBlockRaw)) * 6_307_200) / totalCoreStaked) * 100
+      const blocksRemaining = Math.max(0, Number(endBlockRaw) - currentBlock);
+      const rewardsRemaining = blocksRemaining > 0 
+        ? Number(ethers.formatEther(BigInt(blocksRemaining) * rewardPerBlockRaw)) 
         : 0;
 
-      const daysRemaining = Math.floor((blocksRemaining * 5) / 86400);
+      const currentApr = totalCoreStaked > 0 
+        ? ((Number(ethers.formatEther(rewardPerBlockRaw)) * 6_307_200) / totalCoreStaked) * 100 
+        : 0;
 
-      // ================= TOTAL CORE BURNED =================
-      const totalCoreBurned = 5 + onChainBurned;   // 5 from previous contract + current staking burns
+      let userData = {};
 
-      let nextVaultData = {
-        ...fallbackVault,
-        totalCoreStaked: Number(totalCoreStaked.toFixed(2)),
-        rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
-        daysRemaining: Math.max(0, daysRemaining),
-        totalCoreBurned: Number(totalCoreBurned.toFixed(2)),   // ← Updated
-        currentApr: Number(currentApr.toFixed(2)),
-        nextDripSeconds,
-      };
-
-      // User data
+      // === USER DATA (most flaky part on mobile) ===
       if (account) {
         try {
+          console.log("👤 Fetching user data for:", account);
           const user = await staking.getUser(account);
           const minStakeTime = await staking.MIN_STAKE_TIME();
 
@@ -93,8 +86,7 @@ export function useVaultData(provider, account) {
             ? Math.max(0, entryTime + Number(minStakeTime) - now) 
             : 0;
 
-          nextVaultData = {
-            ...nextVaultData,
+          userData = {
             coreStaked: Number(coreStaked.toFixed(4)),
             nftCount,
             earnedCore: Number(pendingRewards.toFixed(4)),
@@ -103,17 +95,28 @@ export function useVaultData(provider, account) {
             penaltyDaysRemaining: Math.ceil(penaltySeconds / 86400),
             userShare: totalCoreStaked > 0 ? (coreStaked / totalCoreStaked) * 100 : 0,
           };
+
+          console.log("✅ User data loaded successfully");
         } catch (e) {
-          console.warn("User data failed:", e.message);
+          console.warn("⚠️ User data fetch failed (common on mobile WalletConnect):", e.message);
+          // Keep fallback user values
         }
       }
 
-      const history = await fetchStakeHistory();
-      nextVaultData.stakeHistory = history || [];
+      const nextVaultData = {
+        ...fallbackVault,
+        totalCoreStaked: Number(totalCoreStaked.toFixed(2)),
+        rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
+        daysRemaining: Math.floor((blocksRemaining * 5) / 86400),
+        totalCoreBurned: 5 + Number(ethers.formatEther(totalCoreBurnedRaw)),
+        currentApr: Number(currentApr.toFixed(2)),
+        nextDripSeconds: Number(nextDripSecondsRaw),
+        ...userData,
+      };
 
       setVaultData(nextVaultData);
     } catch (err) {
-      console.error("❌ Critical loadVaultData error:", err);
+      console.error("❌ Critical vault data error:", err);
     } finally {
       setLoading(false);
     }
@@ -121,20 +124,13 @@ export function useVaultData(provider, account) {
 
   useEffect(() => {
     loadVaultData();
-    const interval = setInterval(loadVaultData, 60000);
+    const interval = setInterval(loadVaultData, 45000); // 45 seconds
     return () => clearInterval(interval);
   }, [loadVaultData]);
 
-  return { vaultData, reloadVaultData: loadVaultData, loading };
-}
-
-async function fetchStakeHistory() {
-  try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    return data.history || [];
-  } catch {
-    return [];
-  }
+  return { 
+    vaultData, 
+    reloadVaultData: loadVaultData, 
+    loading 
+  };
 }
