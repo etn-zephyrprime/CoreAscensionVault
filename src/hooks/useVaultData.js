@@ -26,60 +26,84 @@ export function useVaultData(provider, account) {
   const [loading, setLoading] = useState(false);
 
   const loadVaultData = useCallback(async () => {
-    if (!provider || !account) return;
+    if (!provider) return;
 
     setLoading(true);
     console.log("🔄 loadVaultData called for account:", account);
 
     try {
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
+      const drip = new ethers.Contract(DRIP_FUNDER_ADDRESS, dripABI, provider);
 
-      // Get user data first (most important)
+      // ================= GLOBAL STATS =================
+      const [totalCoreStakedRaw, totalCoreBurnedRaw, rewardPerBlockRaw, endBlockRaw, nextDripSecondsRaw, currentBlock] =
+        await Promise.allSettled([
+          staking.totalCoreStaked(),
+          staking.totalCoreBurned(),
+          staking.rewardPerBlock(),
+          staking.endBlock(),
+          drip.nextDripIn(),
+          provider.getBlockNumber(),
+        ]).then(results => results.map(r => r.status === "fulfilled" ? r.value : 0));
+
+      const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
+      const blocksRemaining = Math.max(0, Number(endBlockRaw) - Number(currentBlock));
+      const rewardsRemaining = blocksRemaining > 0 
+        ? Number(ethers.formatEther(BigInt(blocksRemaining) * rewardPerBlockRaw)) 
+        : 0;
+
+      const currentApr = totalCoreStaked > 0 
+        ? ((Number(ethers.formatEther(rewardPerBlockRaw)) * 6_307_200) / totalCoreStaked) * 100 
+        : 0;
+
+      const daysRemaining = Math.floor((blocksRemaining * 5) / 86400);
+
+      // ================= USER DATA =================
       let userData = {};
-      try {
-        const user = await staking.getUser(account);
-        console.log("✅ getUser returned:", user);
+      if (account) {
+        try {
+          const user = await staking.getUser(account);
+          const minStakeTime = await staking.MIN_STAKE_TIME();
 
-        const minStakeTime = await staking.MIN_STAKE_TIME();
+          const coreStaked = Number(ethers.formatEther(user[0] || 0));
+          const nftCount = Number(user[1] || 0);
+          const entryTime = Number(user[3] || 0);
+          const pendingRewards = Number(ethers.formatEther(user[4] || 0));
+          const currentlyEarly = Boolean(user[5]);
+          const boostBps = Number(user[6] || 0);
 
-        const coreStaked = Number(ethers.formatEther(user[0] || 0));
-        const nftCount = Number(user[1] || 0);
-        const entryTime = Number(user[3] || 0);
-        const pendingRewards = Number(ethers.formatEther(user[4] || 0));
-        const currentlyEarly = Boolean(user[5]);
-        const boostBps = Number(user[6] || 0);
+          const now = Math.floor(Date.now() / 1000);
+          const penaltySeconds = entryTime > 0 
+            ? Math.max(0, entryTime + Number(minStakeTime) - now) 
+            : 0;
 
-        const now = Math.floor(Date.now() / 1000);
-        const penaltySeconds = entryTime > 0 
-          ? Math.max(0, entryTime + Number(minStakeTime) - now) 
-          : 0;
-
-        userData = {
-          coreStaked: Number(coreStaked.toFixed(4)),
-          nftCount,
-          earnedCore: Number(pendingRewards.toFixed(4)),
-          earlyExit: currentlyEarly,
-          boost: boostBps / 10000,
-          penaltyDaysRemaining: Math.ceil(penaltySeconds / 86400),
-        };
-      } catch (e) {
-        console.error("getUser failed:", e.message);
+          userData = {
+            coreStaked: Number(coreStaked.toFixed(4)),
+            nftCount,
+            earnedCore: Number(pendingRewards.toFixed(4)),
+            earlyExit: currentlyEarly,
+            boost: boostBps / 10000,
+            penaltyDaysRemaining: Math.ceil(penaltySeconds / 86400),
+            userShare: totalCoreStaked > 0 ? (coreStaked / totalCoreStaked) * 100 : 0,
+          };
+        } catch (e) {
+          console.warn("User data fetch failed:", e.message);
+        }
       }
 
-      // Global stats
-      const totalCoreStakedRaw = await staking.totalCoreStaked().catch(() => 0);
-      const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
-
+      // ================= FINAL DATA =================
       const nextVaultData = {
         ...fallbackVault,
         ...userData,
         totalCoreStaked: Number(totalCoreStaked.toFixed(2)),
-        userShare: totalCoreStaked > 0 && userData.coreStaked 
-          ? (userData.coreStaked / totalCoreStaked) * 100 
-          : 0,
+        rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
+        daysRemaining: Math.max(0, daysRemaining),
+        currentApr: Number(currentApr.toFixed(2)),
+        totalCoreBurned: 5 + Number(ethers.formatEther(totalCoreBurnedRaw)),
+        nextDripSeconds: Number(nextDripSecondsRaw),
       };
 
-      console.log("✅ Setting final vaultData:", nextVaultData);
+      console.log("✅ Final vaultData:", nextVaultData);
       setVaultData(nextVaultData);
 
     } catch (err) {
