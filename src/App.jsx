@@ -12,7 +12,7 @@ import VaultIntelligence from "./components/VaultIntelligence.jsx";
 import Footer from "./components/Footer.jsx";
 import EcosystemBlock from "./components/ecosystemBlock.jsx";
 import HowToStake from "./components/HowToStake.jsx";
-import DebugOverlay from "./components/DebugOverlay.jsx";
+//import DebugOverlay from "./components/DebugOverlay.jsx";
 
 import {
   CoreClashLogo, AppBackground, PlanetZephyrosAE, ElectroSwap,
