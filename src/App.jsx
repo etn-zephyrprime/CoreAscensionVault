@@ -30,6 +30,23 @@ export default function App() {
     wallet.isConnected
   );
 
+  useEffect(() => {
+  if (!wallet.isConnected || !wallet.account) return;
+
+  async function ensureNetwork() {
+    try {
+      await wallet.ensureCorrectNetwork();
+      // Small delay after switch for provider to settle
+      await new Promise(res => setTimeout(res, 1500));
+      reloadVaultData("post-network-switch");
+    } catch (e) {
+      console.warn("Network switch failed:", e);
+    }
+  }
+
+  ensureNetwork();
+}, [wallet.isConnected, wallet.account]);
+
   // Force reload when wallet connects (especially important for WalletConnect on mobile)
   useEffect(() => {
     if (wallet.account && wallet.provider) {

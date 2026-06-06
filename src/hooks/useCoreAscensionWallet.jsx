@@ -56,6 +56,7 @@ export const appKitModal = createAppKit({
   projectId: PROJECT_ID,
   metadata,
   enableInjected: false,
+  allowUnsupportedChain: false,   // 👈 add this
   features: {
     analytics: true,
     email: false,
