@@ -25,42 +25,18 @@ export function useVaultData(provider, account) {
   const [vaultData, setVaultData] = useState(fallbackVault);
   const [loading, setLoading] = useState(false);
 
-  const loadVaultData = useCallback(async (isRetry = false) => {
-    if (!provider || !account) {
-      console.log("⏳ Waiting for provider + account...");
-      return;
-    }
+  const loadVaultData = useCallback(async () => {
+    if (!provider || !account) return;
 
     setLoading(true);
-    console.log(`🔄 [${isRetry ? 'RETRY' : 'LOAD'}] Fetching vault data for`, account);
+    console.log("🔄 loadVaultData called for account:", account);
 
     try {
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
 
-      // === GLOBAL DATA (more tolerant) ===
-      const globalData = await Promise.allSettled([
-        staking.totalCoreStaked(),
-        staking.totalCoreBurned(),
-        staking.rewardPerBlock(),
-        staking.endBlock(),
-        provider.getBlockNumber(),
-      ]);
-
-      const totalCoreStaked = Number(ethers.formatEther(globalData[0].status === "fulfilled" ? globalData[0].value : 0));
-      const totalCoreBurnedRaw = globalData[1].status === "fulfilled" ? globalData[1].value : 0;
-      const rewardPerBlockRaw = globalData[2].status === "fulfilled" ? globalData[2].value : 0;
-      const endBlockRaw = globalData[3].status === "fulfilled" ? globalData[3].value : 0;
-      const currentBlock = globalData[4].status === "fulfilled" ? globalData[4].value : 0;
-
-      const blocksRemaining = Math.max(0, Number(endBlockRaw) - currentBlock);
-      const rewardsRemaining = blocksRemaining > 0 
-        ? Number(ethers.formatEther(BigInt(blocksRemaining) * rewardPerBlockRaw)) 
-        : 0;
-
-      // === USER DATA - Most important part ===
+      // Get user data first (most important)
       let userData = {};
       try {
-        console.log("👤 Calling getUser...");
         const user = await staking.getUser(account);
         console.log("✅ getUser returned:", user);
 
@@ -85,25 +61,25 @@ export function useVaultData(provider, account) {
           earlyExit: currentlyEarly,
           boost: boostBps / 10000,
           penaltyDaysRemaining: Math.ceil(penaltySeconds / 86400),
-          userShare: totalCoreStaked > 0 ? (coreStaked / totalCoreStaked) * 100 : 0,
         };
-      } catch (userErr) {
-        console.error("❌ getUser failed:", userErr.message);
+      } catch (e) {
+        console.error("getUser failed:", e.message);
       }
+
+      // Global stats
+      const totalCoreStakedRaw = await staking.totalCoreStaked().catch(() => 0);
+      const totalCoreStaked = Number(ethers.formatEther(totalCoreStakedRaw));
 
       const nextVaultData = {
         ...fallbackVault,
-        totalCoreStaked: Number(totalCoreStaked.toFixed(2)),
-        rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
-        daysRemaining: Math.floor((blocksRemaining * 5) / 86400),
-        totalCoreBurned: 5 + Number(ethers.formatEther(totalCoreBurnedRaw)),
-        currentApr: totalCoreStaked > 0 
-          ? Number(((Number(ethers.formatEther(rewardPerBlockRaw)) * 6307200) / totalCoreStaked * 100).toFixed(2))
-          : 0,
         ...userData,
+        totalCoreStaked: Number(totalCoreStaked.toFixed(2)),
+        userShare: totalCoreStaked > 0 && userData.coreStaked 
+          ? (userData.coreStaked / totalCoreStaked) * 100 
+          : 0,
       };
 
-      console.log("✅ Final vaultData:", nextVaultData);
+      console.log("✅ Setting final vaultData:", nextVaultData);
       setVaultData(nextVaultData);
 
     } catch (err) {
@@ -113,20 +89,15 @@ export function useVaultData(provider, account) {
     }
   }, [provider, account]);
 
-  // Initial load + polling
   useEffect(() => {
     if (provider && account) {
       loadVaultData();
-      const interval = setInterval(() => loadVaultData(true), 60000);
+      const interval = setInterval(loadVaultData, 45000);
       return () => clearInterval(interval);
     }
   }, [loadVaultData]);
 
-  return { 
-    vaultData, 
-    reloadVaultData: loadVaultData, 
-    loading 
-  };
+  return { vaultData, reloadVaultData: loadVaultData, loading };
 }
 
 async function fetchStakeHistory() {

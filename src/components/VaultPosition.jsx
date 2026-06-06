@@ -395,6 +395,12 @@ export default function VaultPosition({
         </div>
       </div>
 
+{loading && (
+  <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>
+    Loading position...
+  </div>
+)}
+
       {/* Mini Stats */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
@@ -410,7 +416,7 @@ export default function VaultPosition({
           <div style={miniValueStyle("#ffcc66")}>{formatNumber(userShare, 2)}%</div>
         </div>
       </div>
-      
+
       {/* Penalty Info */}
       <div style={{ border: "1px solid #6b4a00", borderRadius: 8, background: "#1a1200", marginBottom: 16, overflow: "hidden" }}>
         <div onClick={() => setShowPenaltyInfo(v => !v)} style={{ padding: "9px 10px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#ffcc66", fontWeight: 900 }}>
