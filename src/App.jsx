@@ -34,7 +34,7 @@ export default function App() {
       console.log("🔄 Wallet connected — forcing vault data refresh");
       const timer = setTimeout(() => {
         reloadVaultData();
-      }, 1200); // Give WalletConnect time to stabilize
+      }, 4000); // Give WalletConnect time to stabilize
       return () => clearTimeout(timer);
     }
   }, [wallet.account, wallet.provider, reloadVaultData]);

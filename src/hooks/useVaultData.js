@@ -27,8 +27,15 @@ export function useVaultData(provider, account) {
   const mountedRef = useRef(true);
   const loadAttemptRef = useRef(0);
 
-  const loadVaultData = useCallback(async (source = "auto") => {
-    if (!provider || !account || !mountedRef.current) return;
+const loadVaultData = useCallback(async (source = "auto") => {
+  if (!provider || !account || !mountedRef.current) return;
+
+  try {
+    await provider.getNetwork();
+  } catch (err) {
+    console.warn("Provider not ready yet", err);
+    return;
+  }
 
     loadAttemptRef.current += 1;
     setLoading(true);
@@ -67,25 +74,40 @@ export function useVaultData(provider, account) {
 
           const minStakeTime = await staking.MIN_STAKE_TIME();
 
-          const coreStaked = Number(ethers.formatEther(user[0] || 0));
-          const nftCount = Number(user[1] || 0);
-          const entryTime = Number(user[3] || 0);
-          const pendingRewards = Number(ethers.formatEther(user[4] || 0));
-          const currentlyEarly = Boolean(user[5]);
-          const boostBps = Number(user[6] || 0);
+const coreRaw = user.coreStaked ?? user[0] ?? 0;
+const nftRaw = user.nftCount ?? user[1] ?? 0;
+const entryRaw = user.entryTime ?? user[3] ?? 0;
+const rewardRaw = user.pendingRewards ?? user[4] ?? 0;
+const earlyRaw = user.currentlyEarly ?? user[5] ?? false;
+const boostRaw = user.boostBps ?? user[6] ?? 0;
+
+const coreStaked = Number(ethers.formatEther(coreRaw));
+const nftCount = Number(nftRaw);
+const entryTime = Number(entryRaw);
+const pendingRewards = Number(ethers.formatEther(rewardRaw));
+
+const currentlyEarly =
+  earlyRaw === true ||
+  earlyRaw === 1 ||
+  earlyRaw === "1" ||
+  earlyRaw === "true";
+
+const boostBps = Number(boostRaw);
 
           const now = Math.floor(Date.now() / 1000);
           const penaltySeconds = entryTime > 0 ? Math.max(0, entryTime + Number(minStakeTime) - now) : 0;
 
-          userData = {
-            coreStaked: Number(coreStaked.toFixed(4)),
-            nftCount,
-            earnedCore: Number(pendingRewards.toFixed(4)),
-            earlyExit: currentlyEarly,
-            boost: boostBps / 10000,
-            penaltyDaysRemaining: Math.ceil(penaltySeconds / 86400),
-            userShare: totalCoreStaked > 0 ? (coreStaked / totalCoreStaked) * 100 : 0,
-          };
+userData = {
+  coreStaked: Number(coreStaked.toFixed(4)),
+  nftCount,
+  earnedCore: Number(pendingRewards.toFixed(4)),
+  earlyExit: currentlyEarly,
+  boost: boostBps / 10000,
+  penaltyDaysRemaining: Math.ceil(penaltySeconds / 86400),
+  userShare: totalCoreStaked > 0
+    ? (coreStaked / totalCoreStaked) * 100
+    : 0,
+};
         } catch (e) {
           console.warn("⚠️ getUser failed:", e.message);
         }
@@ -112,15 +134,35 @@ export function useVaultData(provider, account) {
   }, [provider, account]);
 
   // Trigger on provider + account changes
-  useEffect(() => {
-    if (provider && account) {
-      console.log("🔄 Provider + Account ready — loading data");
-      loadVaultData("initial");
+useEffect(() => {
+  if (!provider || !account) return;
 
-      const interval = setInterval(() => loadVaultData("poll"), 60000);
-      return () => clearInterval(interval);
+  let cancelled = false;
+
+  async function boot() {
+    try {
+      await provider.getNetwork();
+
+      if (!cancelled) {
+        await loadVaultData("initial");
+      }
+    } catch(e) {
+      console.warn("Wallet not ready", e);
     }
-  }, [provider, account, loadVaultData]);
+  }
+
+  boot();
+
+  const interval = setInterval(() => {
+    if (!cancelled) loadVaultData("poll");
+  }, 60000);
+
+  return () => {
+    cancelled = true;
+    clearInterval(interval);
+  };
+
+}, [provider, account, loadVaultData]);
 
   return { vaultData, reloadVaultData: loadVaultData, loading };
 }

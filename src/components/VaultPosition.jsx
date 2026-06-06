@@ -244,17 +244,6 @@ export default function VaultPosition({
     }
   }
 
-  // Add this useEffect to force reload if data is empty on mobile
-  useEffect(() => {
-    if (isMobile && wallet?.account && (!hasPosition || coreStaked === 0)) {
-      console.log("📱 Mobile WalletConnect detected empty position — requesting refresh");
-      const timer = setTimeout(() => {
-        reloadVaultData?.();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [isMobile, wallet?.account, hasPosition, coreStaked, reloadVaultData]);
-
   async function claimRewards() {
     try {
       if (earnedCore <= 0) return alert("No rewards available.");
@@ -349,17 +338,6 @@ export default function VaultPosition({
     }
   }
 
-// Auto retry on mobile
-  useEffect(() => {
-    if (isMobile && wallet?.account && coreStaked === 0 && reloadVaultData) {
-      const timer = setTimeout(() => {
-        console.log("📱 Auto-retrying data load on mobile");
-        reloadVaultData();
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [isMobile, wallet?.account, coreStaked, reloadVaultData]);
-
   // ====================== RENDER ======================
   return (
     <Panel style={{ background: panel2 }}>
@@ -407,7 +385,7 @@ export default function VaultPosition({
           🔄 Loading your vault position...
         </div>
       )}
-      
+
             {/* Debug Info on Mobile */}
       {isMobile && (
         <div style={{ fontSize: 11, color: "#555", padding: "8px", background: "#111", borderRadius: 8, marginBottom: 12 }}>
