@@ -3,6 +3,13 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
+import stakingABI from '../abis/stakingABI.json' assert { type: 'json' };
+
+const stakingContract = new ethers.Contract(
+  STAKING_ADDRESS,
+  stakingABI,
+  provider
+);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -110,8 +117,10 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
 
   const startBlock = lastBlock + 1;
 
-  // Define event filters
-  const coreStakeFilter = stakingContract.filters.Staked();
+  console.log(`Fetching events from block ${startBlock} to ${currentBlock}`);
+
+  // === Correct event filters based on your actual ABI ===
+  const coreStakeFilter = stakingContract.filters.CoreStaked();
   const nftStakeFilter = stakingContract.filters.NFTStaked();
   const nftWithdrawFilter = stakingContract.filters.NFTWithdrawn();
 
