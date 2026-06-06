@@ -93,12 +93,13 @@ const cleanedHistory = rawHistory.map((e) => ({
 }));
 
   // Sort chronologically (May → June) + enrich numbers
+// Replace your enrichedHistory block with this:
 const enrichedHistory = [...cleanedHistory]
   .sort((a, b) => new Date(a.date) - new Date(b.date))
   .map((entry) => ({
     ...entry,
     coreStaked: Number(entry.coreStaked || 0),
-    rewardsRemaining: Number(entry.rewardsRemaining || 0),
+    rewardsRemaining: Number(entry.rewardsRemaining ?? 0),  // ?? not || so 0 is valid
     currentApr: Number(entry.currentApr || 0),
   }));
 
@@ -203,13 +204,17 @@ const enrichedHistory = [...cleanedHistory]
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#222" />
 
-              <XAxis
-                dataKey="date"
-                stroke="#666"
-                fontSize={isMobile ? 10 : 12}
-                tickLine={false}
-                axisLine={{ stroke: "#444" }}
-              />
+<XAxis
+  dataKey="date"
+  stroke="#666"
+  fontSize={isMobile ? 10 : 12}
+  tickLine={false}
+  axisLine={{ stroke: "#444" }}
+  tickFormatter={(d) => {
+    const date = new Date(d);
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }}
+/>
 
               <YAxis
                 yAxisId="left"

@@ -42,7 +42,7 @@ const loadVaultData = useCallback(async (source = "auto") => {
     console.warn("Could not verify network:", e.message);
     return;
   }
-  
+
   try {
     await provider.getNetwork();
   } catch (err) {
@@ -183,7 +183,11 @@ async function fetchStakeHistory() {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
     if (!res.ok) throw new Error();
     const data = await res.json();
-    return data.history || [];
+    // Ensure every entry has rewardsRemaining
+    return (data.history || []).map(entry => ({
+      rewardsRemaining: 0,  // default first so it's always present
+      ...entry,
+    }));
   } catch {
     return [];
   }
