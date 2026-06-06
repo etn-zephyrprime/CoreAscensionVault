@@ -395,12 +395,19 @@ export default function VaultPosition({
         </div>
       </div>
 
-{loading && (
-  <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>
-    Loading position...
-  </div>
-)}
-
+{/* Loading Indicator */}
+      {loading && (
+        <div style={{
+          textAlign: "center",
+          padding: "20px 0",
+          color: "#666",
+          fontSize: "15px",
+          marginBottom: 16
+        }}>
+          🔄 Loading your position...
+        </div>
+      )}
+      
       {/* Mini Stats */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
