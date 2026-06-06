@@ -110,6 +110,9 @@ const boostBps = Number(boostRaw);
           const now = Math.floor(Date.now() / 1000);
           const penaltySeconds = entryTime > 0 ? Math.max(0, entryTime + Number(minStakeTime) - now) : 0;
 
+// Inside loadVaultData, after your globalResults Promise.allSettled, add:
+const stakeHistory = await fetchStakeHistory();
+
 userData = {
   coreStaked: Number(coreStaked.toFixed(4)),
   nftCount,
@@ -134,6 +137,7 @@ userData = {
         daysRemaining: Math.max(0, Math.floor((blocksRemaining * 5) / 86400)),
         currentApr: Number(currentApr.toFixed(2)),
         totalCoreBurned: 5 + Number(ethers.formatEther(globalResults[1].status === "fulfilled" ? globalResults[1].value : 0)),
+        stakeHistory,
       };
 
       console.log("✅ FINAL vaultData set:", nextVaultData);
