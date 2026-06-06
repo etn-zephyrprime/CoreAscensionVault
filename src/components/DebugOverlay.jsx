@@ -24,11 +24,12 @@ export default function DebugOverlay({ provider, account }) {
     if (!provider) { log("❌ No provider"); return; }
     if (!account)  { log("❌ No account");  return; }
 
-    // 1. Network
-    try {
-      const net = await provider.getNetwork();
-      log("✅ network chainId", Number(net.chainId));
-    } catch (e) { log("❌ getNetwork", e.message); return; }
+// 1. Network
+try {
+  const net = await provider.getNetwork();
+  log("✅ network chainId", Number(net.chainId));
+  log(Number(net.chainId) === 52014 ? "✅ correct chain" : "❌ WRONG CHAIN — expected 52014", Number(net.chainId));
+} catch (e) { log("❌ getNetwork", e.message); return; }
 
     // 2. Block number
     try {
