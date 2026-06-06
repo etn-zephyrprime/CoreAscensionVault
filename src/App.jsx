@@ -164,7 +164,7 @@ export default function App() {
   isMobile={isMobile}
   vaultData={vaultData}
 />
-<DebugOverlay provider={wallet.provider} account={wallet.account} />
+{/* <DebugOverlay provider={wallet.provider} account={wallet.account} /> */}
         <Footer />
       </div>
     </div>
