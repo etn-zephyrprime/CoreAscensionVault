@@ -27,6 +27,17 @@ export default function App() {
     wallet.account
   );
 
+  // Force reload when wallet connects (especially important for WalletConnect on mobile)
+  useEffect(() => {
+    if (wallet.account && wallet.provider) {
+      console.log("🔄 Wallet connected — forcing vault data refresh");
+      const timer = setTimeout(() => {
+        reloadVaultData();
+      }, 1200); // Give WalletConnect time to stabilize
+      return () => clearTimeout(timer);
+    }
+  }, [wallet.account, wallet.provider, reloadVaultData]);
+
   function handleEcosystemClick(_key, url) {
   window.open(url, "_blank", "noopener,noreferrer");
 }

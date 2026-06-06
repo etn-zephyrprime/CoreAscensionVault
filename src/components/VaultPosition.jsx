@@ -400,15 +400,14 @@ export default function VaultPosition({
       {loading && (
         <div style={{
           textAlign: "center",
-          padding: "24px 0",
-          color: "#888",
-          fontSize: "15px",
-          marginBottom: 16
+          padding: "30px 0",
+          color: "#777",
+          fontSize: "16px",
         }}>
-          🔄 Loading your position...
+          🔄 Loading your vault position...
         </div>
       )}
-
+      
             {/* Debug Info on Mobile */}
       {isMobile && (
         <div style={{ fontSize: 11, color: "#555", padding: "8px", background: "#111", borderRadius: 8, marginBottom: 12 }}>

@@ -25,19 +25,20 @@ export function useVaultData(provider, account) {
   const [vaultData, setVaultData] = useState(fallbackVault);
   const [loading, setLoading] = useState(false);
   const mountedRef = useRef(true);
-  const previousAccountRef = useRef(null);
+  const loadAttemptRef = useRef(0);
 
   const loadVaultData = useCallback(async (source = "auto") => {
     if (!provider || !account || !mountedRef.current) return;
 
+    loadAttemptRef.current += 1;
     setLoading(true);
-    console.log(`🔄 [${source}] Loading vault data for`, account);
+
+    console.log(`🔄 [${source}] Attempt #${loadAttemptRef.current} for`, account);
 
     try {
       const staking = new ethers.Contract(STAKING_ADDRESS, stakingABI, provider);
       const drip = new ethers.Contract(DRIP_FUNDER_ADDRESS, dripABI, provider);
 
-      // Global stats
       const globalResults = await Promise.allSettled([
         staking.totalCoreStaked(),
         staking.totalCoreBurned(),
@@ -58,12 +59,11 @@ export function useVaultData(provider, account) {
         ? ((Number(ethers.formatEther(globalResults[2].value)) * 6307200) / totalCoreStaked) * 100
         : 0;
 
-      // User data
       let userData = {};
       if (account) {
         try {
           const user = await staking.getUser(account);
-          console.log("✅ getUser success on", source, ":", user);
+          console.log("✅ getUser success:", user);
 
           const minStakeTime = await staking.MIN_STAKE_TIME();
 
@@ -101,35 +101,24 @@ export function useVaultData(provider, account) {
         totalCoreBurned: 5 + Number(ethers.formatEther(globalResults[1].status === "fulfilled" ? globalResults[1].value : 0)),
       };
 
-      console.log("✅ Setting final vaultData:", nextVaultData);
+      console.log("✅ FINAL vaultData set:", nextVaultData);
       setVaultData(nextVaultData);
 
     } catch (err) {
-      console.error("Critical error in loadVaultData:", err);
+      console.error("Critical error:", err);
     } finally {
       setLoading(false);
     }
   }, [provider, account]);
 
-  // Main effect
+  // Trigger on provider + account changes
   useEffect(() => {
     if (provider && account) {
-      // Reset if account changed
-      if (previousAccountRef.current !== account) {
-        console.log("🔄 Account changed, resetting data");
-        setVaultData(fallbackVault);
-        previousAccountRef.current = account;
-      }
-
-      // Initial load with delay for WalletConnect
-      const timer = setTimeout(() => loadVaultData("initial"), 800);
+      console.log("🔄 Provider + Account ready — loading data");
+      loadVaultData("initial");
 
       const interval = setInterval(() => loadVaultData("poll"), 60000);
-
-      return () => {
-        clearTimeout(timer);
-        clearInterval(interval);
-      };
+      return () => clearInterval(interval);
     }
   }, [provider, account, loadVaultData]);
 
