@@ -47,6 +47,18 @@ function miniValueStyle(color) {
   };
 }
 
+const [refreshing, setRefreshing] = useState(false);
+
+async function handleRefresh() {
+  if (!reloadVaultData) return;
+  setRefreshing(true);
+  try {
+    await reloadVaultData();
+  } finally {
+    setRefreshing(false);
+  }
+}
+
 export default function VaultPosition({
   vaultData,
   wallet,
@@ -343,27 +355,27 @@ export default function VaultPosition({
         </h2>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Refresh Button */}
-          <button
-            onClick={reloadVaultData}
-            disabled={!reloadVaultData}
-            style={{
-              padding: "6px 12px",
-              background: "#1a1a1a",
-              border: "1px solid #444",
-              borderRadius: 8,
-              color: "#aaa",
-              fontSize: 13,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.borderColor = green)}
-            onMouseOut={(e) => (e.currentTarget.style.borderColor = "#444")}
-          >
-            ↻ Refresh
-          </button>
+{/* Refresh Button */}
+<button
+  onClick={handleRefresh}
+  disabled={refreshing || !reloadVaultData}
+  style={{
+    padding: "6px 12px",
+    background: "#1a1a1a",
+    border: "1px solid #444",
+    borderRadius: 8,
+    color: "#aaa",
+    fontSize: 13,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+  }}
+  onMouseOver={(e) => (e.currentTarget.style.borderColor = green)}
+  onMouseOut={(e) => (e.currentTarget.style.borderColor = "#444")}
+>
+  {refreshing ? "🔄 Refreshing..." : "↻ Refresh"}
+</button>
 
           {/* Boost Badge */}
           <div style={{ 
@@ -379,7 +391,7 @@ export default function VaultPosition({
           </div>
         </div>
       </div>
-      
+
       {/* Mini Stats - Always show even if zero */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
