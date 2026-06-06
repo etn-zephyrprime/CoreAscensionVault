@@ -21,3 +21,4 @@ export const WETN_TOKEN_ADDRESS = process.env.WETN_TOKEN_ADDRESS;
 export const EXPLORER_BASE_URL = "https://blockexplorer.electroneum.com";
 export const ELECTROSWAP_BASE_URL = "https://app.electroswap.io";
 export const DRIP_FUNDER_ADDRESS = "0x5c13dfF13885FbEc61207d52F992c55a5aa1908d";
+export const STAKING_ADDRESS = "0x200A9b5Fe78d4cB5232a3A0C52B510F961C51Cd6";
