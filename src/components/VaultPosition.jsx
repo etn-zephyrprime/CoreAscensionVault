@@ -59,13 +59,20 @@ export default function VaultPosition({
   const [penaltyPreview, setPenaltyPreview] = useState(null);
   const [txLoading, setTxLoading] = useState(false);
 
+  // Force refresh when vaultData changes (important for WalletConnect)
+  useEffect(() => {
+    console.log("🔄 VaultPosition received new vaultData:", vaultData); // ← Debug log
+  }, [vaultData]);
+
   const data = vaultData || {};
 
-  const coreStaked = Number(data.coreStaked || 0);
-  const nftCount = Number(data.nftCount || 0);
-  const earnedCore = Number(data.earnedCore || 0);
-  const userShare = Number(data.userShare || 0);
-  const boost = Number(data.boost || 1);
+  // Safe numeric extraction with fallback
+  const coreStaked = Math.max(0, Number(data.coreStaked || 0));
+  const nftCount = Math.max(0, Number(data.nftCount || 0));
+  const earnedCore = Math.max(0, Number(data.earnedCore || 0));
+  const userShare = Math.max(0, Number(data.userShare || 0));
+  const boost = Math.max(1, Number(data.boost || 1));
+  const penaltyDaysRemaining = Math.max(0, Number(data.penaltyDaysRemaining || 0));
 
   const hasPosition = coreStaked > 0 || nftCount > 0;
   const boostLabel = useMemo(() => `${boost.toFixed(2)}x`, [boost]);
@@ -207,6 +214,17 @@ export default function VaultPosition({
     }
   }
 
+  // Add this useEffect to force reload if data is empty on mobile
+  useEffect(() => {
+    if (isMobile && wallet?.account && (!hasPosition || coreStaked === 0)) {
+      console.log("📱 Mobile WalletConnect detected empty position — requesting refresh");
+      const timer = setTimeout(() => {
+        reloadVaultData?.();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isMobile, wallet?.account, hasPosition, coreStaked, reloadVaultData]);
+
   async function claimRewards() {
     try {
       if (earnedCore <= 0) return alert("No rewards available.");
@@ -302,19 +320,67 @@ export default function VaultPosition({
   }
 
   // ====================== RENDER ======================
+// ====================== RENDER ======================
   return (
     <Panel style={{ background: panel2 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-        <h2 style={{ fontSize: isMobile ? 20 : 24, color: green, margin: 0, textTransform: "uppercase", textShadow: `0 0 8px ${greenGlow}` }}>
+      {/* Header with Refresh Button */}
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center", 
+        flexWrap: "wrap", 
+        gap: 8, 
+        marginBottom: 12 
+      }}>
+        <h2 style={{ 
+          fontSize: isMobile ? 20 : 24, 
+          color: green, 
+          margin: 0, 
+          textTransform: "uppercase", 
+          textShadow: `0 0 8px ${greenGlow}` 
+        }}>
           Your Vault Position
         </h2>
-        <div style={{ padding: "8px 12px", borderRadius: 999, border: "1px solid #6b4a00", background: "#1a1200", color: "#ffcc66", fontSize: 13, fontWeight: 900 }}>
-          Boost {boostLabel}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Refresh Button */}
+          <button
+            onClick={reloadVaultData}
+            disabled={!reloadVaultData}
+            style={{
+              padding: "6px 12px",
+              background: "#1a1a1a",
+              border: "1px solid #444",
+              borderRadius: 8,
+              color: "#aaa",
+              fontSize: 13,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.borderColor = green)}
+            onMouseOut={(e) => (e.currentTarget.style.borderColor = "#444")}
+          >
+            ↻ Refresh
+          </button>
+
+          {/* Boost Badge */}
+          <div style={{ 
+            padding: "8px 12px", 
+            borderRadius: 999, 
+            border: "1px solid #6b4a00", 
+            background: "#1a1200", 
+            color: "#ffcc66", 
+            fontSize: 13, 
+            fontWeight: 900 
+          }}>
+            Boost {boostLabel}
+          </div>
         </div>
       </div>
-
-      {/* Mini Stats */}
+      
+      {/* Mini Stats - Always show even if zero */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>
           <div style={miniLabelStyle()}>CORE Staked</div>
