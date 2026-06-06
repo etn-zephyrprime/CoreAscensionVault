@@ -47,18 +47,6 @@ function miniValueStyle(color) {
   };
 }
 
-const [refreshing, setRefreshing] = useState(false);
-
-async function handleRefresh() {
-  if (!reloadVaultData) return;
-  setRefreshing(true);
-  try {
-    await reloadVaultData();
-  } finally {
-    setRefreshing(false);
-  }
-}
-
 export default function VaultPosition({
   vaultData,
   wallet,
@@ -71,7 +59,19 @@ export default function VaultPosition({
   const [penaltyPreview, setPenaltyPreview] = useState(null);
   const [txLoading, setTxLoading] = useState(false);
 
-  // Force refresh when vaultData changes (important for WalletConnect)
+const [refreshing, setRefreshing] = useState(false);
+
+async function handleRefresh() {
+  if (!reloadVaultData) return;
+  setRefreshing(true);
+  try {
+    await reloadVaultData();
+  } finally {
+    setRefreshing(false);
+  }
+}
+
+// Force refresh when vaultData changes (important for WalletConnect)
   useEffect(() => {
     console.log("🔄 VaultPosition received new vaultData:", vaultData); // ← Debug log
   }, [vaultData]);
