@@ -1,4 +1,5 @@
 import React from "react";
+import { useEffect } from "react";
 import { useCoreAscensionWallet } from "./hooks/useCoreAscensionWallet.jsx";
 import { useVaultData } from "./hooks/useVaultData.js";
 import { useIsMobile } from "./hooks/useIsMobile.js";
