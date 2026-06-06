@@ -408,7 +408,14 @@ export default function VaultPosition({
           🔄 Loading your position...
         </div>
       )}
-      
+
+            {/* Debug Info on Mobile */}
+      {isMobile && (
+        <div style={{ fontSize: 11, color: "#555", padding: "8px", background: "#111", borderRadius: 8, marginBottom: 12 }}>
+          Account: {wallet?.account ? wallet.account.slice(0, 8) + "..." : "Not connected"}
+        </div>
+      )}
+
       {/* Mini Stats */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 16 }}>
         <div style={miniMetricStyle()}>

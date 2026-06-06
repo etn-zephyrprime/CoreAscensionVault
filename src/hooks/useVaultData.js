@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { ethers } from "ethers";
 import { STAKING_ADDRESS, DRIP_FUNDER_ADDRESS } from "../config";
 import stakingABI from "../abis/stakingABI.json" with { type: "json" };
@@ -24,12 +24,11 @@ const fallbackVault = {
 export function useVaultData(provider, account) {
   const [vaultData, setVaultData] = useState(fallbackVault);
   const [loading, setLoading] = useState(false);
+  const mountedRef = useRef(true);
+  const previousAccountRef = useRef(null);
 
   const loadVaultData = useCallback(async (source = "auto") => {
-    if (!provider || !account) {
-      console.log(`⏳ [${source}] Waiting for provider + account...`);
-      return;
-    }
+    if (!provider || !account || !mountedRef.current) return;
 
     setLoading(true);
     console.log(`🔄 [${source}] Loading vault data for`, account);
@@ -56,7 +55,7 @@ export function useVaultData(provider, account) {
         : 0;
 
       const currentApr = totalCoreStaked > 0 && globalResults[2].status === "fulfilled"
-        ? ((Number(ethers.formatEther(globalResults[2].value)) * 6_307_200) / totalCoreStaked) * 100
+        ? ((Number(ethers.formatEther(globalResults[2].value)) * 6307200) / totalCoreStaked) * 100
         : 0;
 
       // User data
@@ -64,7 +63,7 @@ export function useVaultData(provider, account) {
       if (account) {
         try {
           const user = await staking.getUser(account);
-          console.log("✅ getUser success on mobile:", user);
+          console.log("✅ getUser success on", source, ":", user);
 
           const minStakeTime = await staking.MIN_STAKE_TIME();
 
@@ -88,7 +87,7 @@ export function useVaultData(provider, account) {
             userShare: totalCoreStaked > 0 ? (coreStaked / totalCoreStaked) * 100 : 0,
           };
         } catch (e) {
-          console.warn("⚠️ getUser failed on mobile:", e.message);
+          console.warn("⚠️ getUser failed:", e.message);
         }
       }
 
@@ -102,7 +101,7 @@ export function useVaultData(provider, account) {
         totalCoreBurned: 5 + Number(ethers.formatEther(globalResults[1].status === "fulfilled" ? globalResults[1].value : 0)),
       };
 
-      console.log("✅ Final vaultData on mobile:", nextVaultData);
+      console.log("✅ Setting final vaultData:", nextVaultData);
       setVaultData(nextVaultData);
 
     } catch (err) {
@@ -112,11 +111,19 @@ export function useVaultData(provider, account) {
     }
   }, [provider, account]);
 
-  // Initial + polling
+  // Main effect
   useEffect(() => {
     if (provider && account) {
-      // Small delay for WalletConnect on mobile
+      // Reset if account changed
+      if (previousAccountRef.current !== account) {
+        console.log("🔄 Account changed, resetting data");
+        setVaultData(fallbackVault);
+        previousAccountRef.current = account;
+      }
+
+      // Initial load with delay for WalletConnect
       const timer = setTimeout(() => loadVaultData("initial"), 800);
+
       const interval = setInterval(() => loadVaultData("poll"), 60000);
 
       return () => {
