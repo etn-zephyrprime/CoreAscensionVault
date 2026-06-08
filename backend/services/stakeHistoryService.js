@@ -82,43 +82,110 @@ async function fetchEventsInChunks(contract, filter, fromBlock, toBlock) {
   return events;
 }
 
+/* --------------------- DAILY SNAPSHOT -------------------- */
 async function upsertDailySnapshot(state, stakingContract, dripContract) {
   const today = getDayKey(Math.floor(Date.now() / 1000));
-  const map = new Map(state.history?.map(h => [h.date, { ...h }]) || []);
+  const map = new Map(
+    state.history?.map(h => [h.date, { ...h }]) || []
+  );
 
   try {
-    const [totalCoreStaked, rewardPerBlock, endBlock, currentBlock] = await Promise.all([
+    const [
+      totalCoreStaked,
+      rewardPerBlock,
+      endBlock,
+      currentBlock
+    ] = await Promise.all([
       stakingContract.totalCoreStaked(),
       stakingContract.rewardPerBlock(),
       stakingContract.endBlock(),
       stakingContract.runner.provider.getBlockNumber(),
     ]);
 
-    const totalStaked = Number(ethers.formatEther(totalCoreStaked));
-    const blocksLeft = Math.max(0, Number(endBlock) - Number(currentBlock));
-    const rewardsRemaining = blocksLeft > 0
-      ? Number(ethers.formatEther(BigInt(blocksLeft) * rewardPerBlock))
-      : 0;
-    const currentApr = totalStaked > 0
-      ? ((Number(ethers.formatEther(rewardPerBlock)) * 6307200) / totalStaked) * 100
-      : 0;
+    const totalStaked = Number(
+      ethers.formatEther(totalCoreStaked)
+    );
 
-    const existing = map.get(today) || { date: today, nftsStaked: 0 };
+    const blocksLeft = Math.max(
+      0,
+      Number(endBlock) - Number(currentBlock)
+    );
+
+    const rewardsRemaining =
+      blocksLeft > 0
+        ? Number(
+            ethers.formatEther(
+              BigInt(blocksLeft) * rewardPerBlock
+            )
+          )
+        : 0;
+
+    const existing = map.get(today) || {
+      date: today,
+      nftsStaked: 0
+    };
+
+    const apr =
+      totalStaked > 0
+        ? Number(
+            (
+              Number(ethers.formatEther(rewardPerBlock)) *
+              6307200 /
+              totalStaked *
+              100
+            ).toFixed(2)
+          )
+        : 0;
+
     map.set(today, {
       ...existing,
       date: today,
-      coreStaked: Number(totalStaked.toFixed(2)),         // ✅ live total, not delta
-      rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
-      currentApr: Number(currentApr.toFixed(2)),
+      coreStaked: Number(totalStaked.toFixed(2)),
       totalCoreStaked: Number(totalStaked.toFixed(2)),
+      rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
+      currentApr: apr
     });
 
-    console.log(`📸 Snapshot ${today}: coreStaked=${totalStaked.toFixed(2)}, rewardsRemaining=${rewardsRemaining.toFixed(2)}, apr=${currentApr.toFixed(2)}`);
+    console.log(
+      `📸 Snapshot ${today}: stake=${totalStaked.toFixed(2)} APR=${apr}%`
+    );
   } catch (err) {
-    console.warn("Could not take daily snapshot:", err.message);
+    console.warn(
+      "Could not take daily snapshot:",
+      err.message
+    );
   }
 
   return map;
+}
+
+// ================= APR RECALCULATION =================
+function recalculateHistoricalApr(history, rewardPerBlock) {
+
+  const rewardPerBlockEth =
+    Number(ethers.formatEther(rewardPerBlock));
+
+  for (const d of history) {
+
+    if (d.coreStaked > 0) {
+
+      d.currentApr = Number(
+        (
+          rewardPerBlockEth *
+          6307200 /
+          d.coreStaked *
+          100
+        ).toFixed(2)
+      );
+
+    } else {
+
+      d.currentApr = 0;
+
+    }
+  }
+
+  return history;
 }
 
 /* ---------- Fetch full history (initial load or forced) ---------- */
@@ -193,7 +260,15 @@ for (const day of Object.values(daily)) {
     d.nftsStaked = Math.max(0, runningNfts);
   }
 
-  const newState = {
+// Full processing path — add just before the newState object at the bottom:
+try {
+  const rewardPerBlock = await stakingContract.rewardPerBlock();
+  recalculateHistoricalApr(history, rewardPerBlock);
+} catch (e) {
+  console.warn("Could not recalculate APR:", e.message);
+}
+
+const newState = {
     lastProcessedBlock: currentBlock,
     history,
     userStakes: userNFTMap,
@@ -266,20 +341,26 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
   }
 
   // Drip rewards
-  try {
-    if (dripContract) {
-      const remainingDrips = await dripContract.remainingDrips();
-      const totalDripped = await dripContract.totalDripped();
+// Replace the drip rewards block in processEvents:
+try {
+  if (dripContract) {
+    const [remainingDrips, totalDripped, dripAmount] = await Promise.all([
+      dripContract.remainingDrips(),
+      dripContract.totalDripped(),
+      dripContract.DRIP_AMOUNT(),
+    ]);
 
-      const today = getDayKey(Math.floor(Date.now() / 1000));
-      if (daily[today]) {
-        daily[today].rewardsRemaining = Number(remainingDrips) * 500;
-        daily[today].totalDripped = Number(ethers.formatEther(totalDripped));
-      }
+    const today = getDayKey(Math.floor(Date.now() / 1000));
+    if (daily[today]) {
+      daily[today].rewardsRemaining = Number(ethers.formatEther(
+        BigInt(remainingDrips) * dripAmount
+      ));
+      daily[today].totalDripped = Number(ethers.formatEther(totalDripped));
     }
-  } catch (err) {
-    console.warn("Could not fetch drip stats:", err.message);
   }
+} catch (err) {
+  console.warn("Could not fetch drip stats:", err.message);
+}
 
   await saveStakes(structuredClone(activeUserNFTs));
 
