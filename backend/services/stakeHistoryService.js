@@ -82,7 +82,45 @@ async function fetchEventsInChunks(contract, filter, fromBlock, toBlock) {
   return events;
 }
 
-// ================= MAIN FUNCTION =================
+// ================= DAILY SNAPSHOT =================
+async function upsertDailySnapshot(state, stakingContract, dripContract) {
+  const today = getDayKey(Math.floor(Date.now() / 1000));
+  const map = new Map(state.history?.map(h => [h.date, { ...h }]) || []);
+
+  try {
+    // Get current live chain values
+    const [totalCoreStaked, rewardPerBlock, endBlock, currentBlock] = await Promise.all([
+      stakingContract.totalCoreStaked(),
+      stakingContract.rewardPerBlock(),
+      stakingContract.endBlock(),
+      stakingContract.runner.provider.getBlockNumber(),
+    ]);
+
+    const totalStaked = Number(ethers.formatEther(totalCoreStaked));
+    const blocksLeft = Math.max(0, Number(endBlock) - Number(currentBlock));
+    const rewardsRemaining = blocksLeft > 0
+      ? Number(ethers.formatEther(BigInt(blocksLeft) * rewardPerBlock))
+      : 0;
+    const currentApr = totalStaked > 0
+      ? ((Number(ethers.formatEther(rewardPerBlock)) * 6307200) / totalStaked) * 100
+      : 0;
+
+    const existing = map.get(today) || { date: today, coreStaked: 0, nftsStaked: 0 };
+    map.set(today, {
+      ...existing,
+      date: today,
+      rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
+      currentApr: Number(currentApr.toFixed(2)),
+      totalCoreStaked: Number(totalStaked.toFixed(2)),
+    });
+
+    console.log(`📸 Daily snapshot for ${today}: rewardsRemaining=${rewardsRemaining.toFixed(2)}, apr=${currentApr.toFixed(2)}`);
+  } catch (err) {
+    console.warn("Could not take daily snapshot:", err.message);
+  }
+
+  return map;
+}
 
 export async function fetchStakeHistory(stakingContract, dripContract, provider, options = {}) {
   const { force = false, fromBlock = CONTRACT_CREATION_BLOCK } = options;
@@ -99,12 +137,19 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
 
   const lastBlock = state.lastProcessedBlock || CONTRACT_CREATION_BLOCK;
 
+  // Always upsert today's snapshot with live chain data
+  const map = await upsertDailySnapshot(state, stakingContract, dripContract);
+
+  // Skip event processing if nothing new (but still save the snapshot)
   if (!force && lastBlock >= currentBlock - 30) {
-    return state.history;
+    const history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const newState = { ...state, history, lastUpdated: new Date().toISOString() };
+    await saveHistory(newState);
+    console.log(`📸 Snapshot only — no new blocks to process`);
+    return history;
   }
 
   const startBlock = lastBlock + 1;
-
   console.log(`🔄 Fetching events from block ${startBlock} to ${currentBlock}`);
 
   const coreStakeFilter = stakingContract.filters.CoreStaked();
@@ -118,24 +163,18 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   ]);
 
   const { daily, userNFTMap } = await processEvents(
-    coreEvents,
-    nftEvents,
-    withdrawEvents,
-    provider,
-    stakingContract,
-    dripContract
+    coreEvents, nftEvents, withdrawEvents,
+    provider, stakingContract, dripContract
   );
 
-  // Merge with existing history
-  const map = new Map(state.history?.map(h => [h.date, { ...h }]) || []);
-
+  // Merge event data into the map (snapshot already in there)
   for (const day of Object.values(daily)) {
     const existing = map.get(day.date) || {};
     map.set(day.date, {
       ...existing,
       ...day,
-      rewardsRemaining: day.rewardsRemaining !== undefined 
-        ? day.rewardsRemaining 
+      rewardsRemaining: day.rewardsRemaining !== undefined
+        ? day.rewardsRemaining
         : (existing.rewardsRemaining || 0),
     });
   }
@@ -159,7 +198,7 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   await saveHistory(newState);
   await saveLastBlockLocked("stakeHistoryLastBlock", currentBlock);
 
-  console.log(`✅ Stake history updated up to block ${currentBlock} | ${history.length} days`);
+  console.log(`✅ Stake history updated to block ${currentBlock} | ${history.length} days`);
   return history;
 }
 
