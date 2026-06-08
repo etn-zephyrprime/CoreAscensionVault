@@ -142,6 +142,9 @@ const nextVaultData = {
     globalResults[1].status === "fulfilled" ? globalResults[1].value : 0
   )),
   stakeHistory, // ✅ now in scope
+  nextDripSeconds: globalResults[4].status === "fulfilled"   // 👈 add this
+    ? Number(globalResults[4].value)
+    : 0,
 };
       console.log("✅ FINAL vaultData set:", nextVaultData);
       setVaultData(nextVaultData);
