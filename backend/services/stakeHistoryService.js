@@ -82,13 +82,11 @@ async function fetchEventsInChunks(contract, filter, fromBlock, toBlock) {
   return events;
 }
 
-// ================= DAILY SNAPSHOT =================
 async function upsertDailySnapshot(state, stakingContract, dripContract) {
   const today = getDayKey(Math.floor(Date.now() / 1000));
   const map = new Map(state.history?.map(h => [h.date, { ...h }]) || []);
 
   try {
-    // Get current live chain values
     const [totalCoreStaked, rewardPerBlock, endBlock, currentBlock] = await Promise.all([
       stakingContract.totalCoreStaked(),
       stakingContract.rewardPerBlock(),
@@ -105,16 +103,17 @@ async function upsertDailySnapshot(state, stakingContract, dripContract) {
       ? ((Number(ethers.formatEther(rewardPerBlock)) * 6307200) / totalStaked) * 100
       : 0;
 
-    const existing = map.get(today) || { date: today, coreStaked: 0, nftsStaked: 0 };
+    const existing = map.get(today) || { date: today, nftsStaked: 0 };
     map.set(today, {
       ...existing,
       date: today,
+      coreStaked: Number(totalStaked.toFixed(2)),         // ✅ live total, not delta
       rewardsRemaining: Number(rewardsRemaining.toFixed(2)),
       currentApr: Number(currentApr.toFixed(2)),
       totalCoreStaked: Number(totalStaked.toFixed(2)),
     });
 
-    console.log(`📸 Daily snapshot for ${today}: rewardsRemaining=${rewardsRemaining.toFixed(2)}, apr=${currentApr.toFixed(2)}`);
+    console.log(`📸 Snapshot ${today}: coreStaked=${totalStaked.toFixed(2)}, rewardsRemaining=${rewardsRemaining.toFixed(2)}, apr=${currentApr.toFixed(2)}`);
   } catch (err) {
     console.warn("Could not take daily snapshot:", err.message);
   }
@@ -122,6 +121,7 @@ async function upsertDailySnapshot(state, stakingContract, dripContract) {
   return map;
 }
 
+/* ---------- Fetch full history (initial load or forced) ---------- */
 export async function fetchStakeHistory(stakingContract, dripContract, provider, options = {}) {
   const { force = false, fromBlock = CONTRACT_CREATION_BLOCK } = options;
 
@@ -167,17 +167,22 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
     provider, stakingContract, dripContract
   );
 
-  // Merge event data into the map (snapshot already in there)
-  for (const day of Object.values(daily)) {
-    const existing = map.get(day.date) || {};
-    map.set(day.date, {
-      ...existing,
-      ...day,
-      rewardsRemaining: day.rewardsRemaining !== undefined
-        ? day.rewardsRemaining
-        : (existing.rewardsRemaining || 0),
-    });
-  }
+// Replace the event merge loop with this:
+for (const day of Object.values(daily)) {
+  const existing = map.get(day.date) || {};
+  map.set(day.date, {
+    ...existing,
+    ...day,
+    // coreStaked: today's snapshot already has the live total; for past days
+    // add the event delta on top of whatever was already recorded
+    coreStaked: day.date === getDayKey(Math.floor(Date.now() / 1000))
+      ? (existing.coreStaked ?? 0)          // today: keep snapshot value
+      : (existing.coreStaked ?? 0) + (day.coreStaked ?? 0),  // past: accumulate
+    rewardsRemaining: day.rewardsRemaining !== undefined
+      ? day.rewardsRemaining
+      : (existing.rewardsRemaining || 0),
+  });
+}
 
   const history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 
