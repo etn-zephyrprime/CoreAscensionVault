@@ -2,7 +2,7 @@ import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { fetchStakeHistory, forceUpdateHistory } from "../services/stakeHistoryService.js";
+import { fetchStakeHistory, forceUpdateHistory, aggregateWeeklyHistory } from "../services/stakeHistoryService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -50,17 +50,23 @@ export async function forceRefreshHistory(req, res) {
   }
 }
 
-// Get current history
 router.get("/stake-history", async (req, res) => {
   try {
     await ensureDataDir();
-    const data = await fs.readFile(HISTORY_FILE, "utf8");
-    res.json(JSON.parse(data));
+    const raw = await fs.readFile(HISTORY_FILE, "utf8");
+    const data = JSON.parse(raw);
+
+    const weeklyHistory = aggregateWeeklyHistory(data.history || []);
+
+    res.json({
+      ...data,
+      weeklyHistory,
+    });
   } catch (err) {
-    // Return empty structure if file doesn't exist
     res.json({
       lastProcessedBlock: 13853455,
-      history: []
+      history: [],
+      weeklyHistory: [],
     });
   }
 });

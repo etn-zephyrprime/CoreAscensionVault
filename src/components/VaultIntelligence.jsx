@@ -72,6 +72,21 @@ function parseDateString(dateStr) {
   return date;
 }
 
+const [timeframe, setTimeframe] = useState("daily");
+
+const chartData = timeframe === "weekly"
+  ? (vaultData?.weeklyHistory || [])
+  : (vaultData?.stakeHistory || []);
+
+const enrichedHistory = [...chartData]
+  .sort((a, b) => new Date(a.date) - new Date(b.date))
+  .map((entry) => ({
+    ...entry,
+    coreStaked: Number(entry.coreStaked || 0),
+    rewardsRemaining: Number(entry.rewardsRemaining ?? 0),
+    currentApr: Number(entry.currentApr || 0),
+  }));
+
 export default function VaultIntelligence({ isMobile, vaultData }) {
   const rawHistory = vaultData?.stakeHistory || [];
 
@@ -146,6 +161,30 @@ const enrichedHistory = [...cleanedHistory]
           <InfoRow label="Max Stake" value="10,000 CORE" />
           <InfoRow label="Max NFT Boost" value="1.30x" highlight />
         </div>
+
+{/* Timeframe toggle — add above the ToggleButton row */}
+<div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+  {["daily", "weekly"].map((tf) => (
+    <button
+      key={tf}
+      onClick={() => setTimeframe(tf)}
+      style={{
+        padding: "4px 14px",
+        borderRadius: 20,
+        border: `1px solid ${timeframe === tf ? "#fff" : "#444"}`,
+        background: timeframe === tf ? "#fff" : "transparent",
+        color: timeframe === tf ? "#000" : "#888",
+        fontSize: 12,
+        fontWeight: 700,
+        cursor: "pointer",
+        textTransform: "uppercase",
+        letterSpacing: 0.8,
+      }}
+    >
+      {tf}
+    </button>
+  ))}
+</div>
 
         {/* Multi-Metric Growth Chart */}
         <div
@@ -248,44 +287,46 @@ const enrichedHistory = [...cleanedHistory]
 
               <Legend />
 
-              {visibleLines.coreStaked && (
-                <Line
-                  yAxisId="left"
-                  dataKey="coreStaked"
-                  stroke={green}
-                  strokeWidth={isMobile ? 3.5 : 4.5}
-                  dot={{ r: isMobile ? 4 : 5, fill: green }}
-                  activeDot={{ r: 7 }}
-                  name="CORE Staked"
-                  connectNulls={true}
-                />
-              )}
+{visibleLines.coreStaked && (
+  <Line
+    yAxisId="left"
+    dataKey="coreStaked"
+    stroke={green}
+    strokeWidth={isMobile ? 3.5 : 4.5}
+    dot={false}
+    activeDot={{ r: 7, fill: green }}
+    name="CORE Staked"
+    connectNulls={true}
+  />
+)}
 
-              {visibleLines.rewardsRemaining && (
-                <Line
-                  yAxisId="left"
-                  dataKey="rewardsRemaining"
-                  stroke="#ff8a3d"
-                  strokeWidth={isMobile ? 2.5 : 3}
-                  strokeDasharray="6 3"
-                  dot={{ r: isMobile ? 3.5 : 4, fill: "#ff8a3d" }}
-                  name="Rewards Remaining"
-                  connectNulls={true}
-                />
-              )}
+{visibleLines.rewardsRemaining && (
+  <Line
+    yAxisId="left"
+    dataKey="rewardsRemaining"
+    stroke="#ff8a3d"
+    strokeWidth={isMobile ? 2.5 : 3}
+    strokeDasharray="6 3"
+    dot={false}
+    activeDot={{ r: 6, fill: "#ff8a3d" }}
+    name="Rewards Remaining"
+    connectNulls={true}
+  />
+)}
 
-              {visibleLines.currentApr && (
-                <Line
-                  yAxisId="right"
-                  dataKey="currentApr"
-                  stroke="#00d4ff"
-                  strokeWidth={isMobile ? 2.5 : 3}
-                  strokeDasharray="4 3"
-                  dot={{ r: isMobile ? 3.5 : 4, fill: "#00d4ff" }}
-                  name="APY %"
-                  connectNulls={true}
-                />
-              )}
+{visibleLines.currentApr && (
+  <Line
+    yAxisId="right"
+    dataKey="currentApr"
+    stroke="#00d4ff"
+    strokeWidth={isMobile ? 2.5 : 3}
+    strokeDasharray="4 3"
+    dot={false}
+    activeDot={{ r: 6, fill: "#00d4ff" }}
+    name="APY %"
+    connectNulls={true}
+  />
+)}
             </LineChart>
           </ResponsiveContainer>
         </div>

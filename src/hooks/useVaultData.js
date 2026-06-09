@@ -18,6 +18,7 @@ const fallbackVault = {
   userShare: 0,
   totalCoreBurned: 5,
   stakeHistory: [],
+  weeklyHistory: [],
   nextDripSeconds: 0,
 };
 
@@ -80,7 +81,7 @@ const loadVaultData = useCallback(async (source = "auto") => {
         : 0;
 
 // Fetch stakeHistory outside the account block so it's always in scope
-const stakeHistory = await fetchStakeHistory();
+const { history: stakeHistory, weeklyHistory } = await fetchStakeHistory();
 
 let userData = {};
 if (account) {
@@ -142,6 +143,7 @@ const nextVaultData = {
     globalResults[1].status === "fulfilled" ? globalResults[1].value : 0
   )),
   stakeHistory, // ✅ now in scope
+  weeklyHistory,
   nextDripSeconds: globalResults[4].status === "fulfilled"   // 👈 add this
     ? Number(globalResults[4].value)
     : 0,
@@ -193,12 +195,11 @@ async function fetchStakeHistory() {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vault/stake-history`);
     if (!res.ok) throw new Error();
     const data = await res.json();
-    // Ensure every entry has rewardsRemaining
-    return (data.history || []).map(entry => ({
-      rewardsRemaining: 0,  // default first so it's always present
-      ...entry,
-    }));
+    return {
+      history: (data.history || []).map(entry => ({ rewardsRemaining: 0, ...entry })),
+      weeklyHistory: (data.weeklyHistory || []).map(entry => ({ rewardsRemaining: 0, ...entry })),
+    };
   } catch {
-    return [];
+    return { history: [], weeklyHistory: [] };
   }
 }

@@ -381,6 +381,29 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
   return { daily, userNFTMap: activeUserNFTs };
 }
 
+// ================= WEEKLY AGGREGATION =================
+// Groups daily history into ISO weeks (Mon–Sun).
+// Uses the last day of each week as the canonical data point
+// since it's the most recent snapshot for that week.
+
+export function aggregateWeeklyHistory(dailyHistory) {
+  const weeks = new Map();
+
+  for (const entry of dailyHistory) {
+    const date = new Date(entry.date);
+    // Get Monday of this week as the week key
+    const day = date.getDay();
+    const monday = new Date(date);
+    monday.setDate(date.getDate() - ((day + 6) % 7));
+    const weekKey = monday.toISOString().split("T")[0];
+
+    // Always overwrite — last day of week wins (most recent values)
+    weeks.set(weekKey, { ...entry, date: weekKey });
+  }
+
+  return Array.from(weeks.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 // ================= FORCE REBUILD =================
 
 export async function forceUpdateHistory(stakingContract, dripContract, provider, fromBlock) {
