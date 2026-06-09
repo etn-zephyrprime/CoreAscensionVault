@@ -62,62 +62,16 @@ function formatNumber(value, decimals = 2) {
   });
 }
 
-// Helper to parse "May 21", "Jun 3" etc.
-function parseDateString(dateStr) {
-  const currentYear = new Date().getFullYear();
-  const date = new Date(`${dateStr} ${currentYear}`);
-  if (date > new Date()) {
-    date.setFullYear(currentYear - 1);
-  }
-  return date;
-}
-
-const [timeframe, setTimeframe] = useState("daily");
-
-const chartData = timeframe === "weekly"
-  ? (vaultData?.weeklyHistory || [])
-  : (vaultData?.stakeHistory || []);
-
-const enrichedHistory = [...chartData]
-  .sort((a, b) => new Date(a.date) - new Date(b.date))
-  .map((entry) => ({
-    ...entry,
-    coreStaked: Number(entry.coreStaked || 0),
-    rewardsRemaining: Number(entry.rewardsRemaining ?? 0),
-    currentApr: Number(entry.currentApr || 0),
-  }));
-
-export default function VaultIntelligence({ isMobile, vaultData }) {
-  const rawHistory = vaultData?.stakeHistory || [];
-
-  const normalizeDate = (d) => {
+function normalizeDate(d) {
   if (!d) return d;
-
-  // already ISO
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-
   const parsed = new Date(d);
   if (isNaN(parsed)) return d;
-
   return parsed.toISOString().split("T")[0];
-};
+}
 
-const cleanedHistory = rawHistory.map((e) => ({
-  ...e,
-  date: normalizeDate(e.date),
-}));
-
-  // Sort chronologically (May → June) + enrich numbers
-// Replace your enrichedHistory block with this:
-const enrichedHistory = [...cleanedHistory]
-  .sort((a, b) => new Date(a.date) - new Date(b.date))
-  .map((entry) => ({
-    ...entry,
-    coreStaked: Number(entry.coreStaked || 0),
-    rewardsRemaining: Number(entry.rewardsRemaining ?? 0),  // ?? not || so 0 is valid
-    currentApr: Number(entry.currentApr || 0),
-  }));
-
+export default function VaultIntelligence({ isMobile, vaultData }) {
+  const [timeframe, setTimeframe] = useState("daily");
   const [visibleLines, setVisibleLines] = useState({
     coreStaked: true,
     rewardsRemaining: true,
@@ -125,11 +79,22 @@ const enrichedHistory = [...cleanedHistory]
   });
 
   const toggleLine = (line) => {
-    setVisibleLines((prev) => ({
-      ...prev,
-      [line]: !prev[line],
-    }));
+    setVisibleLines((prev) => ({ ...prev, [line]: !prev[line] }));
   };
+
+  const rawHistory = timeframe === "weekly"
+    ? (vaultData?.weeklyHistory || [])
+    : (vaultData?.stakeHistory || []);
+
+  const enrichedHistory = [...rawHistory]
+    .map((e) => ({ ...e, date: normalizeDate(e.date) }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map((entry) => ({
+      ...entry,
+      coreStaked: Number(entry.coreStaked || 0),
+      rewardsRemaining: Number(entry.rewardsRemaining ?? 0),
+      currentApr: Number(entry.currentApr || 0),
+    }));
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -162,30 +127,6 @@ const enrichedHistory = [...cleanedHistory]
           <InfoRow label="Max NFT Boost" value="1.30x" highlight />
         </div>
 
-{/* Timeframe toggle — add above the ToggleButton row */}
-<div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 12 }}>
-  {["daily", "weekly"].map((tf) => (
-    <button
-      key={tf}
-      onClick={() => setTimeframe(tf)}
-      style={{
-        padding: "4px 14px",
-        borderRadius: 20,
-        border: `1px solid ${timeframe === tf ? "#fff" : "#444"}`,
-        background: timeframe === tf ? "#fff" : "transparent",
-        color: timeframe === tf ? "#000" : "#888",
-        fontSize: 12,
-        fontWeight: 700,
-        cursor: "pointer",
-        textTransform: "uppercase",
-        letterSpacing: 0.8,
-      }}
-    >
-      {tf}
-    </button>
-  ))}
-</div>
-
         {/* Multi-Metric Growth Chart */}
         <div
           style={{
@@ -200,13 +141,38 @@ const enrichedHistory = [...cleanedHistory]
               fontSize: 15,
               color: "#ddd",
               fontWeight: 700,
-              marginBottom: isMobile ? 14 : 18,
+              marginBottom: isMobile ? 10 : 14,
               textAlign: "center",
             }}
           >
             CORE ASCENSION METRICS OVER TIME
           </div>
 
+          {/* Timeframe toggle */}
+          <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+            {["daily", "weekly"].map((tf) => (
+              <button
+                key={tf}
+                onClick={() => setTimeframe(tf)}
+                style={{
+                  padding: "4px 14px",
+                  borderRadius: 20,
+                  border: `1px solid ${timeframe === tf ? "#fff" : "#444"}`,
+                  background: timeframe === tf ? "#fff" : "transparent",
+                  color: timeframe === tf ? "#000" : "#888",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                }}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
+
+          {/* Line toggles */}
           <div
             style={{
               display: "flex",
@@ -243,38 +209,37 @@ const enrichedHistory = [...cleanedHistory]
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#222" />
 
-<XAxis
-  dataKey="date"
-  stroke="#666"
-  fontSize={isMobile ? 10 : 12}
-  tickLine={false}
-  axisLine={{ stroke: "#444" }}
-  tickFormatter={(d) => {
-    const date = new Date(d);
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }}
-/>
+              <XAxis
+                dataKey="date"
+                stroke="#666"
+                fontSize={isMobile ? 10 : 12}
+                tickLine={false}
+                axisLine={{ stroke: "#444" }}
+                tickFormatter={(d) => {
+                  const date = new Date(d);
+                  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                }}
+              />
 
               <YAxis
                 yAxisId="left"
                 stroke={green}
-                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}
                 fontSize={isMobile ? 10 : 11}
               />
 
-{/* Right Y-Axis - Fixed 0% to 200% */}
               <YAxis
                 yAxisId="right"
                 tickFormatter={(v) => `${v.toFixed(0)}%`}
                 orientation="right"
                 stroke="#00d4ff"
                 fontSize={isMobile ? 10 : 11}
-                domain={[0, 200]}           // ← This is the key change
+                domain={[0, 200]}
                 allowDataOverflow={false}
                 allowDecimals={false}
-                ticks={[0, 50, 100, 150, 200]}   // Nice clean ticks
+                ticks={[0, 50, 100, 150, 200]}
               />
-              
+
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#111",
@@ -287,46 +252,46 @@ const enrichedHistory = [...cleanedHistory]
 
               <Legend />
 
-{visibleLines.coreStaked && (
-  <Line
-    yAxisId="left"
-    dataKey="coreStaked"
-    stroke={green}
-    strokeWidth={isMobile ? 3.5 : 4.5}
-    dot={false}
-    activeDot={{ r: 7, fill: green }}
-    name="CORE Staked"
-    connectNulls={true}
-  />
-)}
+              {visibleLines.coreStaked && (
+                <Line
+                  yAxisId="left"
+                  dataKey="coreStaked"
+                  stroke={green}
+                  strokeWidth={isMobile ? 3.5 : 4.5}
+                  dot={false}
+                  activeDot={{ r: 7, fill: green }}
+                  name="CORE Staked"
+                  connectNulls={true}
+                />
+              )}
 
-{visibleLines.rewardsRemaining && (
-  <Line
-    yAxisId="left"
-    dataKey="rewardsRemaining"
-    stroke="#ff8a3d"
-    strokeWidth={isMobile ? 2.5 : 3}
-    strokeDasharray="6 3"
-    dot={false}
-    activeDot={{ r: 6, fill: "#ff8a3d" }}
-    name="Rewards Remaining"
-    connectNulls={true}
-  />
-)}
+              {visibleLines.rewardsRemaining && (
+                <Line
+                  yAxisId="left"
+                  dataKey="rewardsRemaining"
+                  stroke="#ff8a3d"
+                  strokeWidth={isMobile ? 2.5 : 3}
+                  strokeDasharray="6 3"
+                  dot={false}
+                  activeDot={{ r: 6, fill: "#ff8a3d" }}
+                  name="Rewards Remaining"
+                  connectNulls={true}
+                />
+              )}
 
-{visibleLines.currentApr && (
-  <Line
-    yAxisId="right"
-    dataKey="currentApr"
-    stroke="#00d4ff"
-    strokeWidth={isMobile ? 2.5 : 3}
-    strokeDasharray="4 3"
-    dot={false}
-    activeDot={{ r: 6, fill: "#00d4ff" }}
-    name="APY %"
-    connectNulls={true}
-  />
-)}
+              {visibleLines.currentApr && (
+                <Line
+                  yAxisId="right"
+                  dataKey="currentApr"
+                  stroke="#00d4ff"
+                  strokeWidth={isMobile ? 2.5 : 3}
+                  strokeDasharray="4 3"
+                  dot={false}
+                  activeDot={{ r: 6, fill: "#00d4ff" }}
+                  name="APY %"
+                  connectNulls={true}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
