@@ -51,9 +51,9 @@ async function saveHistory(data) {
   const payload = { ...data, lastUpdated: new Date().toISOString() };
   await ensureDataDir();
   await fs.writeFile(HISTORY_FILE, JSON.stringify(payload, null, 2));
-  // Push to GitHub in background — don't await so it never blocks the response
+  console.log(`💾 Saved ${payload.history?.length} days locally, pushing to GitHub...`);
   pushHistoryToGitHub(payload).catch(e =>
-    console.warn("GitHub push failed (non-fatal):", e.message)
+    console.error("❌ GitHub push failed:", e.message)
   );
 }
 
@@ -235,15 +235,20 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   // Always write today's snapshot with live chain data first
   const map = await upsertDailySnapshot(state, stakingContract);
 
-  // Skip event processing if no new blocks — still save snapshot + enrich
-  if (!force && lastBlock >= currentBlock - 30) {
-    let history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-    history = await enrichHistory(history, stakingContract);
-    const newState = { ...state, history, lastUpdated: new Date().toISOString() };
-    await saveHistory(newState);
-    console.log(`📸 Snapshot only — no new blocks to process`);
-    return history;
-  }
+// In fetchStakeHistory, snapshot-only path — update lastProcessedBlock:
+if (!force && lastBlock >= currentBlock - 30) {
+  let history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+  history = await enrichHistory(history, stakingContract);
+  const newState = {
+    ...state,
+    lastProcessedBlock: currentBlock,  // 👈 update this so next run isn't stale
+    history,
+    lastUpdated: new Date().toISOString(),
+  };
+  await saveHistory(newState);
+  console.log(`📸 Snapshot only — processed to block ${currentBlock}`);
+  return history;
+}
 
   // Full event processing
   const startBlock = lastBlock + 1;
@@ -300,6 +305,21 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
 
   console.log(`✅ Stake history updated to block ${currentBlock} | ${history.length} days`);
   return history;
+}
+
+async function loadStakes() {
+  try {
+    const raw = await fs.readFile(STAKES_FILE, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    await ensureDataDir();
+    return {};
+  }
+}
+
+async function saveStakes(data) {
+  await ensureDataDir();
+  await fs.writeFile(STAKES_FILE, JSON.stringify(data, null, 2));
 }
 
 // ================= PROCESS EVENTS =================
