@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
+import { pullHistoryFromGitHub, pushHistoryToGitHub } from "../utils/githubSync.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -20,39 +21,40 @@ async function ensureDataDir() {
 }
 
 async function loadHistory() {
+  // Try local file first (warm instance — fast path)
   try {
     const raw = await fs.readFile(HISTORY_FILE, "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return {
-      lastProcessedBlock: CONTRACT_CREATION_BLOCK,
-      history: [],
-      userStakes: {},
-      lastUpdated: new Date().toISOString(),
-    };
+    const parsed = JSON.parse(raw);
+    if (parsed.history?.length > 0) return parsed;
+  } catch {}
+
+  // Cold start or empty local file — pull latest from GitHub
+  console.log("📥 Local history empty, pulling from GitHub...");
+  const remote = await pullHistoryFromGitHub();
+  if (remote?.content) {
+    await ensureDataDir();
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(remote.content, null, 2));
+    console.log(`📥 Seeded local file with ${remote.content.history?.length ?? 0} days from GitHub`);
+    return remote.content;
   }
+
+  // Nothing anywhere — fresh start
+  return {
+    lastProcessedBlock: CONTRACT_CREATION_BLOCK,
+    history: [],
+    userStakes: {},
+    lastUpdated: new Date().toISOString(),
+  };
 }
 
 async function saveHistory(data) {
+  const payload = { ...data, lastUpdated: new Date().toISOString() };
   await ensureDataDir();
-  await fs.writeFile(
-    HISTORY_FILE,
-    JSON.stringify({ ...data, lastUpdated: new Date().toISOString() }, null, 2)
+  await fs.writeFile(HISTORY_FILE, JSON.stringify(payload, null, 2));
+  // Push to GitHub in background — don't await so it never blocks the response
+  pushHistoryToGitHub(payload).catch(e =>
+    console.warn("GitHub push failed (non-fatal):", e.message)
   );
-}
-
-async function loadStakes() {
-  try {
-    const raw = await fs.readFile(STAKES_FILE, "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
-}
-
-async function saveStakes(data) {
-  await ensureDataDir();
-  await fs.writeFile(STAKES_FILE, JSON.stringify(data, null, 2));
 }
 
 // ================= DATE =================
