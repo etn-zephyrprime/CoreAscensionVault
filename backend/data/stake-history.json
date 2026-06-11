@@ -1,1 +1,72 @@
-{"lastProcessedBlock":14186398,"history":[{"date":"2026-06-04","coreStaked":0,"nftsStaked":0,"currentApr":0},{"date":"2026-06-05","coreStaked":1540,"nftsStaked":1,"currentApr":58.29,"rewardsRemaining":1176},{"date":"2026-06-06","coreStaked":1540,"nftsStaked":1,"currentApr":58.29,"rewardsRemaining":1173.54},{"date":"2026-06-07","coreStaked":1540,"nftsStaked":1,"currentApr":58.29,"rewardsRemaining":1176},{"date":"2026-06-08","coreStaked":1540,"nftsStaked":1,"currentApr":58.29,"rewardsRemaining":1173.54},{"date":"2026-06-09","nftsStaked":1,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1165.94,"currentApr":35.48}],"userStakes":{"0x2871835ca982f248f61c3a1995931e205c9d5243":[{"nftAddress":"0x5C81a5609EaeEF7962F1D089D6343F9790387901","tokenId":"252"}]},"lastUpdated":"2026-06-09T21:10:43.610Z"}
+{
+  "lastProcessedBlock": 14220896,
+  "history": [
+    {
+      "date": "2026-06-04",
+      "coreStaked": 0,
+      "nftsStaked": 0,
+      "currentApr": 0
+    },
+    {
+      "date": "2026-06-05",
+      "coreStaked": 1540,
+      "nftsStaked": 1,
+      "currentApr": 58.29,
+      "rewardsRemaining": 1176
+    },
+    {
+      "date": "2026-06-06",
+      "coreStaked": 1540,
+      "nftsStaked": 2,
+      "currentApr": 58.29,
+      "rewardsRemaining": 1173.54
+    },
+    {
+      "date": "2026-06-07",
+      "coreStaked": 1540,
+      "nftsStaked": 3,
+      "currentApr": 58.29,
+      "rewardsRemaining": 1176
+    },
+    {
+      "date": "2026-06-08",
+      "coreStaked": 1540,
+      "nftsStaked": 4,
+      "currentApr": 58.29,
+      "rewardsRemaining": 1173.54
+    },
+    {
+      "date": "2026-06-09",
+      "nftsStaked": 5,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1165.94,
+      "currentApr": 35.48
+    },
+    {
+      "date": "2026-06-10",
+      "nftsStaked": 5,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1163.48,
+      "currentApr": 35.48
+    },
+    {
+      "date": "2026-06-11",
+      "nftsStaked": 5,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1161.03,
+      "currentApr": 35.48
+    }
+  ],
+  "userStakes": {
+    "0x2871835ca982f248f61c3a1995931e205c9d5243": [
+      {
+        "nftAddress": "0x5C81a5609EaeEF7962F1D089D6343F9790387901",
+        "tokenId": "252"
+      }
+    ]
+  },
+  "lastUpdated": "2026-06-11T21:05:20.779Z"
+}
