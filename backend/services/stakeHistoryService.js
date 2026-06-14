@@ -144,15 +144,19 @@ function backfillRewardsRemaining(history, rewardPerBlock) {
 
 function recalculateHistoricalApr(history, rewardPerBlock) {
   const rewardPerBlockEth = Number(ethers.formatEther(rewardPerBlock));
-  for (const d of history) {
-    if (d.coreStaked > 0) {
-      d.currentApr = Number(
-        ((rewardPerBlockEth * 6307200) / d.coreStaked * 100).toFixed(2)
-      );
-    } else {
-      d.currentApr = 0;
-    }
+for (const d of history) {
+  if (d.currentApr !== undefined) {
+    continue;
   }
+
+  if (d.coreStaked > 0) {
+    d.currentApr = Number(
+      ((rewardPerBlockEth * 6307200) / d.coreStaked * 100).toFixed(2)
+    );
+  } else {
+    d.currentApr = 0;
+  }
+}
   return history;
 }
 
@@ -270,8 +274,8 @@ if (!force && lastBlock >= currentBlock - 30) {
   for (const day of Object.values(daily)) {
     const existing = map.get(day.date) || {};
     map.set(day.date, {
-      ...existing,
       ...day,
+      ...existing,
       coreStaked: day.date === todayKey
         ? (existing.coreStaked ?? 0)
         : (existing.coreStaked ?? 0) + (day.coreStaked ?? 0),
@@ -284,11 +288,13 @@ if (!force && lastBlock >= currentBlock - 30) {
   let history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 
   // Cumulative NFT count (nftsStaked from events is a delta)
-  let runningNfts = 0;
-  for (const d of history) {
-    runningNfts += d.nftsStaked || 0;
-    d.nftsStaked = Math.max(0, runningNfts);
-  }
+let runningNfts = 0;
+
+for (const d of history) {
+  // only add the daily delta
+  runningNfts += Number(d.nftsStakedDelta || 0);
+  d.nftsStaked = Math.max(0, runningNfts);
+}
 
   // Fill gaps, backfill rewards, recalculate APR
   history = await enrichHistory(history, stakingContract);
@@ -351,7 +357,7 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
     const day = getDayKey(block.timestamp);
 
     daily[day] ||= { date: day, coreStaked: 0, nftsStaked: 0 };
-    daily[day].nftsStaked += 1;
+    daily[day].nftsStakedDelta = (daily[day].nftsStakedDelta || 0) + 1;
 
     activeUserNFTs[user] ||= [];
     if (!activeUserNFTs[user].some(n =>
@@ -370,7 +376,7 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
     const day = getDayKey(block.timestamp);
 
     daily[day] ||= { date: day, coreStaked: 0, nftsStaked: 0 };
-    daily[day].nftsStaked -= 1;
+    daily[day].nftsStakedDelta = (daily[day].nftsStakedDelta || 0) - 1;
 
     if (activeUserNFTs[user]) {
       activeUserNFTs[user] = activeUserNFTs[user].filter(
