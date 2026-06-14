@@ -415,21 +415,29 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
 // since it's the most recent snapshot for that week.
 
 export function aggregateWeeklyHistory(dailyHistory) {
-  const weeks = new Map();
+  const weekly = [];
 
   for (const entry of dailyHistory) {
     const date = new Date(entry.date);
-    // Get Monday of this week as the week key
-    const day = date.getDay();
-    const monday = new Date(date);
-    monday.setDate(date.getDate() - ((day + 6) % 7));
-    const weekKey = monday.toISOString().split("T")[0];
 
-    // Always overwrite — last day of week wins (most recent values)
-    weeks.set(weekKey, { ...entry, date: weekKey });
+    // Monday starts a new weekly bucket
+    const isMonday = date.getDay() === 1;
+
+    if (isMonday || weekly.length === 0) {
+      weekly.push({
+        ...entry,
+        date: entry.date
+      });
+    } else {
+      // update current week's snapshot with latest daily data
+      weekly[weekly.length - 1] = {
+        ...entry,
+        date: weekly[weekly.length - 1].date
+      };
+    }
   }
 
-  return Array.from(weeks.values()).sort((a, b) => a.date.localeCompare(b.date));
+  return weekly;
 }
 
 // ================= FORCE REBUILD =================
