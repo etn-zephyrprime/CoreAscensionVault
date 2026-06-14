@@ -410,29 +410,24 @@ async function processEvents(coreEvents, nftEvents, withdrawEvents, provider, st
 }
 
 // ================= WEEKLY AGGREGATION =================
-// Groups daily history into ISO weeks (Mon–Sun).
-// Uses the last day of each week as the canonical data point
-// since it's the most recent snapshot for that week.
-
-export function aggregateWeeklyHistory(dailyHistory) {
+export function buildWeeklyRollingHistory(dailyHistory) {
   const weekly = [];
+  let currentIndex = -1;
 
   for (const entry of dailyHistory) {
     const date = new Date(entry.date);
-
-    // Monday starts a new weekly bucket
     const isMonday = date.getDay() === 1;
 
     if (isMonday || weekly.length === 0) {
       weekly.push({
         ...entry,
-        date: entry.date
+        snapshotDate: entry.date
       });
+      currentIndex++;
     } else {
-      // update current week's snapshot with latest daily data
-      weekly[weekly.length - 1] = {
+      weekly[currentIndex] = {
         ...entry,
-        date: weekly[weekly.length - 1].date
+        snapshotDate: entry.date
       };
     }
   }

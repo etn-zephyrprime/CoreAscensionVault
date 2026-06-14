@@ -2,7 +2,7 @@ import express from "express";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { fetchStakeHistory, forceUpdateHistory, aggregateWeeklyHistory } from "../services/stakeHistoryService.js";
+import { fetchStakeHistory, forceUpdateHistory, buildWeeklyRollingHistory } from "../services/stakeHistoryService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -52,22 +52,24 @@ export async function forceRefreshHistory(req, res) {
 
 router.get("/stake-history", async (req, res) => {
   try {
-    await ensureDataDir();
-    const raw = await fs.readFile(HISTORY_FILE, "utf8");
-    const data = JSON.parse(raw);
+    const { stakingContract, dripContract, provider } = req.app.locals;
 
-    const weeklyHistory = aggregateWeeklyHistory(data.history || []);
+    const history = await fetchStakeHistory(
+      stakingContract,
+      dripContract,
+      provider
+    );
+
+    const weeklyHistory = buildWeeklyRollingHistory(history);
 
     res.json({
-      ...data,
+      history,
       weeklyHistory,
     });
+
   } catch (err) {
-    res.json({
-      lastProcessedBlock: 13853455,
-      history: [],
-      weeklyHistory: [],
-    });
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch history" });
   }
 });
 
