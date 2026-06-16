@@ -2,6 +2,7 @@
 import fs from "fs";
 import path from "path";
 import { withLock } from "./mutex.js";
+import { pullHistoryFromGitHub, pushHistoryToGitHub } from "./githubSync.js";
 
 const DATA_DIR = fs.existsSync("/backend/data")
   ? "/backend/data/state"
@@ -15,23 +16,47 @@ function ensureStateDir() {
   }
 }
 
-function loadStateFile() {
+async function loadStateFile() {
   try {
-    if (!fs.existsSync(STATE_FILE)) return {};
+    if (fs.existsSync(STATE_FILE)) {
+      const raw = fs.readFileSync(STATE_FILE, "utf8");
 
-    const raw = fs.readFileSync(STATE_FILE, "utf8");
-    if (!raw) return {};
+      if (raw) {
+        const parsed = JSON.parse(raw);
 
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
+        if (parsed && typeof parsed === "object") {
+          return parsed;
+        }
+      }
+    }
   } catch (err) {
-    console.error("loadStateFile error:", err);
-    return {};
+    console.error("Local state load failed:", err);
   }
+
+  console.log("📥 Loading lastBlock.json from GitHub...");
+
+  try {
+    const remote = await pullHistoryFromGitHub("lastBlock.json");
+
+    if (remote?.content) {
+      ensureStateDir();
+
+      fs.writeFileSync(
+        STATE_FILE,
+        JSON.stringify(remote.content, null, 2)
+      );
+
+      return remote.content;
+    }
+  } catch (err) {
+    console.error("GitHub state restore failed:", err.message);
+  }
+
+  return {};
 }
 
-function saveStateFile(state) {
-  try {
+async function saveStateFile(state) {
+    try {
     ensureStateDir();
 
     const tempFile = `${STATE_FILE}.tmp`;
@@ -40,33 +65,38 @@ function saveStateFile(state) {
       JSON.stringify(state, null, 2),
       "utf8"
     );
-    fs.renameSync(tempFile, STATE_FILE);
+fs.renameSync(tempFile, STATE_FILE);
+
+pushHistoryToGitHub(state, "lastBlock.json")
+  .catch(err =>
+    console.error("❌ lastBlock GitHub push failed:", err.message)
+  );
   } catch (err) {
     console.error("saveStateFile error:", err);
     throw err;
   }
 }
 
-export function loadLastBlock(key = "lastBlock") {
-  const state = loadStateFile();
+export async function loadLastBlock(key = "lastBlock") {
+const state = await loadStateFile();
   return state[key] ?? null;
 }
 
-export function saveLastBlock(key = "lastBlock", block) {
-  const state = loadStateFile();
+export async function saveLastBlock(key = "lastBlock", block) {
+const state = await loadStateFile();
+await saveStateFile(state);
   state[key] = block;
-  saveStateFile(state);
 }
 
 export async function loadLastBlockLocked(key = "lastBlock") {
   return withLock(async () => {
-    return loadLastBlock(key);
+    return await loadLastBlock(key);
   });
 }
 
 export async function saveLastBlockLocked(key = "lastBlock", block) {
   return withLock(async () => {
-    saveLastBlock(key, block);
+    await saveLastBlock(key, block);
     return block;
   });
 }
