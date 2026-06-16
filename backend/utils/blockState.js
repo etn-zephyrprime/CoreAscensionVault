@@ -36,7 +36,9 @@ async function loadStateFile() {
   console.log("📥 Loading lastBlock.json from GitHub...");
 
   try {
-    const remote = await pullHistoryFromGitHub("lastBlock.json");
+const remote = await pullHistoryFromGitHub(
+  "backend/state/lastBlock.json"
+);
 
     if (remote?.content) {
       ensureStateDir();
@@ -67,7 +69,10 @@ async function saveStateFile(state) {
     );
 fs.renameSync(tempFile, STATE_FILE);
 
-pushHistoryToGitHub(state, "lastBlock.json")
+pushHistoryToGitHub(
+  state,
+  "backend/state/lastBlock.json"
+)
   .catch(err =>
     console.error("❌ lastBlock GitHub push failed:", err.message)
   );
