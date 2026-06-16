@@ -49,12 +49,23 @@ async function loadHistory() {
 
 async function saveHistory(data) {
   const payload = { ...data, lastUpdated: new Date().toISOString() };
+
   await ensureDataDir();
-  await fs.writeFile(HISTORY_FILE, JSON.stringify(payload, null, 2));
-  console.log(`💾 Saved ${payload.history?.length} days locally, pushing to GitHub...`);
-  pushHistoryToGitHub(payload).catch(e =>
-    console.error("❌ GitHub push failed:", e.message)
+
+  await fs.writeFile(
+    HISTORY_FILE,
+    JSON.stringify(payload, null, 2)
   );
+
+  console.log(
+    `💾 Saved ${payload.history?.length} days locally, pushing to GitHub...`
+  );
+
+  try {
+    await pushHistoryToGitHub(payload);
+  } catch (e) {
+    console.error("❌ GitHub push failed:", e.message);
+  }
 }
 
 // ================= DATE =================

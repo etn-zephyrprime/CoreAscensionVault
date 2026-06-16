@@ -55,13 +55,13 @@ export async function pullHistoryFromGitHub(filePath = DEFAULT_FILE) {
 
 // Push JSON to GitHub
 export async function pushHistoryToGitHub(data, filePath = DEFAULT_FILE) {
-
   if (!TOKEN || !REPO) return;
 
   const path = getPath(filePath);
 
   try {
 
+    // always fetch latest SHA immediately before PUT
     const getRes = await fetch(
       `${GITHUB_API}/repos/${REPO}/contents/${path}?ref=${BRANCH}`,
       { headers: headers() }
@@ -93,9 +93,42 @@ export async function pushHistoryToGitHub(data, filePath = DEFAULT_FILE) {
     );
 
 
+    if (putRes.status === 409) {
+      console.log("🔄 SHA conflict, retrying...");
+
+      // get the newest SHA and try once more
+      const retryGet = await fetch(
+        `${GITHUB_API}/repos/${REPO}/contents/${path}?ref=${BRANCH}`,
+        { headers: headers() }
+      );
+
+      const retryFile = await retryGet.json();
+
+      const retryPut = await fetch(
+        `${GITHUB_API}/repos/${REPO}/contents/${path}`,
+        {
+          method: "PUT",
+          headers: headers(),
+          body: JSON.stringify({
+            message: `chore: retry update ${path}`,
+            content,
+            branch: BRANCH,
+            sha: retryFile.sha
+          })
+        }
+      );
+
+      if (!retryPut.ok) {
+        throw new Error(await retryPut.text());
+      }
+
+      console.log(`📤 Retry push succeeded: ${path}`);
+      return;
+    }
+
+
     if (!putRes.ok) {
-      const error = await putRes.text();
-      throw new Error(error);
+      throw new Error(await putRes.text());
     }
 
 
