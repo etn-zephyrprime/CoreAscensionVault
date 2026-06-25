@@ -1,5 +1,5 @@
 {
-  "lastProcessedBlock": 14453686,
+  "lastProcessedBlock": 14453689,
   "history": [
     {
       "date": "2026-06-04",
@@ -98,78 +98,6 @@
       "totalCoreStaked": 2530,
       "rewardsRemaining": 1644.38,
       "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-17",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-18",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-19",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-20",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-21",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-22",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-23",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-24",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 1644.38,
-      "currentApr": 50.76
-    },
-    {
-      "date": "2026-06-25",
-      "nftsStaked": 0,
-      "coreStaked": 2530,
-      "totalCoreStaked": 2530,
-      "rewardsRemaining": 2106.72,
-      "currentApr": 66.27
     }
   ],
   "userStakes": {
@@ -180,5 +108,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-06-25T08:24:22.901Z"
+  "lastUpdated": "2026-06-25T08:24:44.317Z"
 }
