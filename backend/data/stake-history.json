@@ -1,32 +1,112 @@
-{"history":[{"date":"2026-06-04","coreStaked":0,"nftsStaked":0,"currentApr":0},
-{"date":"2026-06-05","coreStaked":1540,"nftsStaked":0,"currentApr":83.39,"rewardsRemaining":1176},
-{"date":"2026-06-06","coreStaked":1540,"nftsStaked":0,"currentApr":83.39,"rewardsRemaining":1173.54},
-{"date":"2026-06-07","coreStaked":1540,"nftsStaked":0,"currentApr":83.39,"rewardsRemaining":1176},
-{"date":"2026-06-08","coreStaked":1540,"nftsStaked":0,"currentApr":83.39,"rewardsRemaining":1173.54},
-{"date":"2026-06-09","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1165.94,"currentApr":35.48},
-{"date":"2026-06-10","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1162.42,"currentApr":35.48},
-{"date":"2026-06-11","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1165.94,"currentApr":35.48},
-{"date":"2026-06-12","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1659.2,"currentApr":50.76},
-{"date":"2026-06-13","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1655.68,"currentApr":50.76},
-{"date":"2026-06-14","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1650.39,"currentApr":50.76},
-{"date":"2026-06-15","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1646.87,"currentApr":50.76},
-{"date":"2026-06-16","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1644.38,"currentApr":50.76},
-{"date":"2026-06-17","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":50.76},
-{"date":"2026-06-18","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1644.38,"currentApr":64.48},
-{"date":"2026-06-19","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":64.48},
-{"date":"2026-06-20","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1644.38,"currentApr":64.48},
-{"date":"2026-06-21","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":64.48},
-{"date":"2026-06-22","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1644.38,"currentApr":64.48},
-{"date":"2026-06-23","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":64.48},
-{"date":"2026-06-24","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1644.38,"currentApr":64.48},
-{"date":"2026-06-25","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":82.01},
-{"date":"2026-06-26","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1644.38,"currentApr":82.01},
-{"date":"2026-06-27","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":82.01},
-{"date":"2026-06-28","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1644.38,"currentApr":82.01},
-{"date":"2026-06-29","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":82.01},
-{"date":"2026-06-30","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":2576.16,"currentApr":82.01}],
-"weeklyHistory":[{"date":"2026-06-07","coreStaked":1540,"nftsStaked":0,"currentApr":83.39,"rewardsRemaining":1176,"snapshotDate":"2026-06-07"},
-{"date":"2026-06-14","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1650.39,"currentApr":35.48,"snapshotDate":"2026-06-14"},
-{"date":"2026-06-21","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":1638.7,"currentApr":50.76,"snapshotDate":"2026-06-21"},
-{"date":"2026-06-28","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":2180.38,"currentApr":64.48,"snapshotDate":"2026-06-28"},
-{"date":"2026-06-30","nftsStaked":0,"coreStaked":2530,"totalCoreStaked":2530,"rewardsRemaining":2576.16,"currentApr":82.01,"snapshotDate":"2026-06-30"}]}
+{
+  "lastProcessedBlock": 14302789,
+  "history": [
+    {
+      "date": "2026-06-04",
+      "coreStaked": 0,
+      "nftsStaked": 0,
+      "currentApr": 0
+    },
+    {
+      "date": "2026-06-05",
+      "coreStaked": 1540,
+      "nftsStaked": 0,
+      "currentApr": 83.39,
+      "rewardsRemaining": 1176
+    },
+    {
+      "date": "2026-06-06",
+      "coreStaked": 1540,
+      "nftsStaked": 0,
+      "currentApr": 83.39,
+      "rewardsRemaining": 1173.54
+    },
+    {
+      "date": "2026-06-07",
+      "coreStaked": 1540,
+      "nftsStaked": 0,
+      "currentApr": 83.39,
+      "rewardsRemaining": 1176
+    },
+    {
+      "date": "2026-06-08",
+      "coreStaked": 1540,
+      "nftsStaked": 0,
+      "currentApr": 83.39,
+      "rewardsRemaining": 1173.54
+    },
+    {
+      "date": "2026-06-09",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1165.94,
+      "currentApr": 35.48
+    },
+    {
+      "date": "2026-06-10",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1162.42,
+      "currentApr": 35.48
+    },
+    {
+      "date": "2026-06-11",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1165.94,
+      "currentApr": 35.48
+    },
+    {
+      "date": "2026-06-12",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1659.2,
+      "currentApr": 50.76
+    },
+    {
+      "date": "2026-06-13",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1655.68,
+      "currentApr": 50.76
+    },
+    {
+      "date": "2026-06-14",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1650.39,
+      "currentApr": 50.76
+    },
+    {
+      "date": "2026-06-15",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1646.87,
+      "currentApr": 50.76
+    },
+    {
+      "date": "2026-06-16",
+      "nftsStaked": 0,
+      "coreStaked": 2530,
+      "totalCoreStaked": 2530,
+      "rewardsRemaining": 1644.38,
+      "currentApr": 50.76
+    }
+  ],
+  "userStakes": {
+    "0x2871835ca982f248f61c3a1995931e205c9d5243": [
+      {
+        "nftAddress": "0x5C81a5609EaeEF7962F1D089D6343F9790387901",
+        "tokenId": "252"
+      }
+    ]
+  },
+  "lastUpdated": "2026-06-16T14:49:09.603Z"
+}
