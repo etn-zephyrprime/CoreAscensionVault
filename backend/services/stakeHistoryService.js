@@ -11,6 +11,9 @@ const STAKES_FILE = path.join(__dirname, "../data/current-stakes.json");
 
 const CONTRACT_CREATION_BLOCK = 13853455;
 const CHUNK_SIZE = 250;
+const MIN_CHUNK_SIZE = 10;
+const CHUNK_RETRY_DELAY_MS = 500;
+const MAX_TRANSIENT_RETRIES = 3;
 const BLOCKS_PER_DAY = 86400 / 5; // 17280 — 5-second blocks
 
 // ================= FILE HELPERS =================
@@ -75,19 +78,95 @@ function getDayKey(ts) {
 }
 
 // ================= EVENT FETCHING =================
+//
+// After the service has been down for a while, there can be tens of
+// thousands of blocks to catch up on. Two failure modes show up here:
+//
+//   1. The RPC rejects a request with "Batch size too large" (HTTP 413).
+//      This happens because ethers can bundle multiple in-flight JSON-RPC
+//      calls into one HTTP batch request. Running several event-type
+//      fetches concurrently (Promise.all) makes this worse, so those are
+//      now run sequentially in fetchStakeHistory below.
+//   2. A chunk fails for a transient reason (timeout, rate limit, etc).
+//
+// In both cases we retry instead of silently skipping the range — silently
+// skipping means those events are gone from history forever, even though
+// lastProcessedBlock still advances past them.
+
+// Shared across all event-type fetches in a run: once we learn the RPC is
+// rejecting requests at the current size, subsequent fetches (core, NFT
+// staked, NFT withdrawn) start smaller instead of re-discovering the limit
+// independently each time.
+let adaptiveChunkSize = CHUNK_SIZE;
+
+function isBatchTooLargeError(err) {
+  const msg = err?.message || "";
+  const info = err?.info?.responseBody || "";
+  return (
+    err?.code === 413 ||
+    /413/.test(msg) ||
+    /batch size too large/i.test(msg) ||
+    /batch size too large/i.test(String(info))
+  );
+}
+
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchChunkWithRetry(contract, filter, start, end, depth = 0) {
+  try {
+    return await contract.queryFilter(filter, start, end);
+  } catch (err) {
+    const rangeSize = end - start + 1;
+
+    if (isBatchTooLargeError(err) && rangeSize > MIN_CHUNK_SIZE) {
+      // Shrink the shared chunk size so later chunks in this run (and any
+      // event-type fetch that runs after this one) request less too.
+      adaptiveChunkSize = Math.max(MIN_CHUNK_SIZE, Math.floor(rangeSize / 2));
+      console.warn(
+        `⚠️ Batch too large for ${start}-${end} (size ${rangeSize}), splitting in half and retrying...`
+      );
+
+      await sleep(CHUNK_RETRY_DELAY_MS);
+
+      const mid = start + Math.floor(rangeSize / 2) - 1;
+      const firstHalf = await fetchChunkWithRetry(contract, filter, start, mid, depth + 1);
+      const secondHalf = await fetchChunkWithRetry(contract, filter, mid + 1, end, depth + 1);
+      return [...firstHalf, ...secondHalf];
+    }
+
+    if (depth < MAX_TRANSIENT_RETRIES) {
+      console.warn(`Retrying chunk ${start}-${end} after error: ${err.message}`);
+      await sleep(CHUNK_RETRY_DELAY_MS * (depth + 1));
+      return fetchChunkWithRetry(contract, filter, start, end, depth + 1);
+    }
+
+    // Out of retries — throw instead of dropping the range. The caller
+    // must not advance lastProcessedBlock or save state if this happens,
+    // or these events are lost permanently.
+    throw new Error(`Failed to fetch events for blocks ${start}-${end} after retries: ${err.message}`);
+  }
+}
 
 async function fetchEventsInChunks(contract, filter, fromBlock, toBlock) {
   const events = [];
   let start = fromBlock;
+
   while (start <= toBlock) {
-    const end = Math.min(start + CHUNK_SIZE - 1, toBlock);
+    const size = Math.min(adaptiveChunkSize, CHUNK_SIZE);
+    const end = Math.min(start + size - 1, toBlock);
     console.log(`Fetching events from ${start} to ${end}...`);
-    try {
-      const chunkEvents = await contract.queryFilter(filter, start, end);
-      events.push(...chunkEvents);
-    } catch (err) {
-      console.warn(`Error fetching chunk ${start}-${end}:`, err.message);
+
+    const chunkEvents = await fetchChunkWithRetry(contract, filter, start, end);
+    events.push(...chunkEvents);
+
+    // Slowly recover chunk size after sustained success, so a temporary
+    // dip doesn't cripple throughput for the rest of a long catch-up run.
+    if (adaptiveChunkSize < CHUNK_SIZE) {
+      adaptiveChunkSize = Math.min(CHUNK_SIZE, Math.floor(adaptiveChunkSize * 1.5));
     }
+
     start = end + 1;
   }
   return events;
@@ -155,19 +234,19 @@ function backfillRewardsRemaining(history, rewardPerBlock) {
 
 function recalculateHistoricalApr(history, rewardPerBlock) {
   const rewardPerBlockEth = Number(ethers.formatEther(rewardPerBlock));
-for (const d of history) {
-  if (d.currentApr !== undefined) {
-    continue;
-  }
+  for (const d of history) {
+    if (d.currentApr !== undefined) {
+      continue;
+    }
 
-  if (d.coreStaked > 0) {
-    d.currentApr = Number(
-      ((rewardPerBlockEth * 6307200) / d.coreStaked * 100).toFixed(2)
-    );
-  } else {
-    d.currentApr = 0;
+    if (d.coreStaked > 0) {
+      d.currentApr = Number(
+        ((rewardPerBlockEth * 6307200) / d.coreStaked * 100).toFixed(2)
+      );
+    } else {
+      d.currentApr = 0;
+    }
   }
-}
   return history;
 }
 
@@ -250,30 +329,51 @@ export async function fetchStakeHistory(stakingContract, dripContract, provider,
   // Always write today's snapshot with live chain data first
   const map = await upsertDailySnapshot(state, stakingContract);
 
-// In fetchStakeHistory, snapshot-only path — update lastProcessedBlock:
-if (!force && lastBlock >= currentBlock - 30) {
-  let history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-  history = await enrichHistory(history, stakingContract);
-  const newState = {
-    ...state,
-    lastProcessedBlock: currentBlock,  // 👈 update this so next run isn't stale
-    history,
-    lastUpdated: new Date().toISOString(),
-  };
-  await saveHistory(newState);
-  console.log(`📸 Snapshot only — processed to block ${currentBlock}`);
-  return history;
-}
+  // In fetchStakeHistory, snapshot-only path — update lastProcessedBlock:
+  if (!force && lastBlock >= currentBlock - 30) {
+    let history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+    history = await enrichHistory(history, stakingContract);
+    const newState = {
+      ...state,
+      lastProcessedBlock: currentBlock,  // 👈 update this so next run isn't stale
+      history,
+      lastUpdated: new Date().toISOString(),
+    };
+    await saveHistory(newState);
+    console.log(`📸 Snapshot only — processed to block ${currentBlock}`);
+    return history;
+  }
 
   // Full event processing
   const startBlock = lastBlock + 1;
   console.log(`🔄 Fetching events from block ${startBlock} to ${currentBlock}`);
 
-  const [coreEvents, nftEvents, withdrawEvents] = await Promise.all([
-    fetchEventsInChunks(stakingContract, stakingContract.filters.CoreStaked(), startBlock, currentBlock),
-    fetchEventsInChunks(stakingContract, stakingContract.filters.NFTStaked(), startBlock, currentBlock),
-    fetchEventsInChunks(stakingContract, stakingContract.filters.NFTWithdrawn(), startBlock, currentBlock),
-  ]);
+  let coreEvents, nftEvents, withdrawEvents;
+  try {
+    // Sequential, not Promise.all — running these concurrently is what
+    // causes ethers to bundle multiple eth_getLogs calls into one
+    // oversized HTTP batch request, which is what triggers "Batch size
+    // too large" once there's a big backlog after downtime. If your RPC
+    // provider supports raising the batch limit or you construct the
+    // provider with `batchMaxCount: 1`, these could safely go back to
+    // Promise.all for more throughput.
+    coreEvents = await fetchEventsInChunks(
+      stakingContract, stakingContract.filters.CoreStaked(), startBlock, currentBlock
+    );
+    nftEvents = await fetchEventsInChunks(
+      stakingContract, stakingContract.filters.NFTStaked(), startBlock, currentBlock
+    );
+    withdrawEvents = await fetchEventsInChunks(
+      stakingContract, stakingContract.filters.NFTWithdrawn(), startBlock, currentBlock
+    );
+  } catch (err) {
+    // Do NOT save state or advance lastProcessedBlock here — if we did,
+    // the unprocessed block range would be skipped forever since the next
+    // run would start from currentBlock. Better to leave lastProcessedBlock
+    // where it was and retry the whole range next time this job runs.
+    console.error(`❌ Event fetch failed, aborting this run without advancing lastProcessedBlock: ${err.message}`);
+    throw err;
+  }
 
   const { daily, userNFTMap } = await processEvents(
     coreEvents, nftEvents, withdrawEvents,
@@ -299,13 +399,13 @@ if (!force && lastBlock >= currentBlock - 30) {
   let history = Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 
   // Cumulative NFT count (nftsStaked from events is a delta)
-let runningNfts = 0;
+  let runningNfts = 0;
 
-for (const d of history) {
-  // only add the daily delta
-  runningNfts += Number(d.nftsStakedDelta || 0);
-  d.nftsStaked = Math.max(0, runningNfts);
-}
+  for (const d of history) {
+    // only add the daily delta
+    runningNfts += Number(d.nftsStakedDelta || 0);
+    d.nftsStaked = Math.max(0, runningNfts);
+  }
 
   // Fill gaps, backfill rewards, recalculate APR
   history = await enrichHistory(history, stakingContract);
