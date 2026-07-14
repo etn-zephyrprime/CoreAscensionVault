@@ -107,7 +107,10 @@ export default function VaultPosition({
   const hasPosition = coreStaked > 0 || nftCount > 0;
   const boostLabel = useMemo(() => `${boost.toFixed(2)}x`, [boost]);
 
-  const maxStakeable = Math.max(0, Math.min(Number(data.coreBalance || 0), 10000 - coreStaked));
+const maxStakeable = Math.max(
+  0,
+  Math.min(Number(coreBalance || 0), 10000 - coreStaked)
+);
 
   // ====================== PENALTY PREVIEW ======================
   async function previewEarlyPenalty(amountWei = 0n) {
@@ -445,8 +448,7 @@ export default function VaultPosition({
           max="100" 
           step="1" 
           value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0} 
-          onChange={(e) => setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))} 
-          style={{ width: "100%", accentColor: "#18bb1a" }} 
+          onChange={(e) => setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))}
         />
         <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
           {[25,50,75,100].map(p => (
