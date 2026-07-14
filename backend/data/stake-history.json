@@ -1,5 +1,5 @@
 {
-  "lastProcessedBlock": 14788642,
+  "lastProcessedBlock": 14788558,
   "history": [
     {
       "date": "2026-06-04",
@@ -320,7 +320,7 @@
       "nftsStaked": 0,
       "coreStaked": 2530,
       "totalCoreStaked": 2530,
-      "rewardsRemaining": 3478.59,
+      "rewardsRemaining": 3478.63,
       "currentApr": 114.25
     }
   ],
@@ -332,5 +332,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-07-14T17:37:19.468Z"
+  "lastUpdated": "2026-07-14T17:40:04.937Z"
 }
