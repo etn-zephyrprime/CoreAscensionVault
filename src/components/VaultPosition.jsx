@@ -98,6 +98,9 @@ export default function VaultPosition({
 
   const data = vaultData || {};
 
+  const [coreAllowance, setCoreAllowance] = useState(0n);
+  const [coreBalance, setCoreBalance] = useState(0);
+
   const coreStaked = Math.max(0, Number(data.coreStaked || 0));
   const nftCount = Math.max(0, Number(data.nftCount || 0));
   const earnedCore = Math.max(0, Number(data.earnedCore || 0));
@@ -107,10 +110,10 @@ export default function VaultPosition({
   const hasPosition = coreStaked > 0 || nftCount > 0;
   const boostLabel = useMemo(() => `${boost.toFixed(2)}x`, [boost]);
 
-const maxStakeable = Math.max(
-  0,
-  Math.min(Number(coreBalance || 0), 10000 - coreStaked)
-);
+  const maxStakeable = Math.max(
+    0,
+    Math.min(Number(coreBalance || 0), 10000 - coreStaked)
+  );
 
   // ====================== PENALTY PREVIEW ======================
   async function previewEarlyPenalty(amountWei = 0n) {
@@ -149,9 +152,6 @@ const maxStakeable = Math.max(
   }, [data.earlyExit, coreStaked, wallet?.account]);
 
   // ====================== APPROVAL & BALANCE ======================
-  const [coreAllowance, setCoreAllowance] = useState(0n);
-  const [coreBalance, setCoreBalance] = useState(0);
-
   async function loadCoreApprovalData() {
     if (!wallet?.provider || !wallet?.account) return;
     try {
