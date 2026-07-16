@@ -115,6 +115,14 @@ export default function VaultPosition({
     Math.min(Number(coreBalance || 0), 10000 - coreStaked)
   );
 
+console.log({
+  coreBalance,
+  coreStaked,
+  maxStakeable,
+  stakeAmount,
+  allowance: Number(ethers.formatEther(coreAllowance))
+});
+
   // ====================== PENALTY PREVIEW ======================
   async function previewEarlyPenalty(amountWei = 0n) {
     if (!wallet?.provider || !wallet?.account) return null;
@@ -152,24 +160,46 @@ export default function VaultPosition({
   }, [data.earlyExit, coreStaked, wallet?.account]);
 
   // ====================== APPROVAL & BALANCE ======================
-  async function loadCoreApprovalData() {
-    if (!wallet?.provider || !wallet?.account) return;
-    try {
-      const core = new ethers.Contract(CORE_TOKEN, ERC20ABI, wallet.signingProvider);
-      const [allowance, balance] = await Promise.all([
-        core.allowance(wallet.account, STAKING_ADDRESS),
-        core.balanceOf(wallet.account),
-      ]);
-      setCoreAllowance(allowance);
-      setCoreBalance(Number(ethers.formatEther(balance)));
-    } catch (err) {
-      console.error("loadCoreApprovalData failed:", err);
-    }
-  }
+async function loadCoreApprovalData() {
+  if (!wallet?.provider || !wallet?.account) return;
 
-  useEffect(() => {
-    loadCoreApprovalData();
-  }, [wallet?.signingProvider, wallet?.account]);
+  try {
+    // Check network
+    const network = await wallet.provider.getNetwork();
+
+    console.log("========== Wallet Debug ==========");
+    console.log("Wallet:", wallet.account);
+    console.log("Chain ID:", Number(network.chainId));
+    console.log("Network:", network.name);
+    console.log("CORE Token:", CORE_TOKEN);
+    console.log("Staking:", STAKING_ADDRESS);
+
+    const core = new ethers.Contract(
+      CORE_TOKEN,
+      ERC20ABI,
+      wallet.provider
+    );
+
+    const [allowance, balance] = await Promise.all([
+      core.allowance(wallet.account, STAKING_ADDRESS),
+      core.balanceOf(wallet.account),
+    ]);
+
+    console.log("CORE Balance:", ethers.formatEther(balance));
+    console.log("Allowance:", ethers.formatEther(allowance));
+
+    setCoreAllowance(allowance);
+    setCoreBalance(Number(ethers.formatEther(balance)));
+
+    console.log("=================================");
+  } catch (err) {
+    console.error("loadCoreApprovalData failed:", err);
+  }
+}
+
+useEffect(() => {
+  loadCoreApprovalData();
+}, [wallet?.provider, wallet?.account]);
 
   const parsedStakeAmount = useMemo(() => {
     try {
@@ -442,14 +472,17 @@ export default function VaultPosition({
       {/* Stake Section */}
       <div style={{ marginBottom: 20 }}>
         <label style={{ fontSize: 12, color: "#aaa", fontWeight: 700, textTransform: "uppercase", display: "block", marginBottom: 8 }}>Stake CORE</label>
-        <input 
-          type="range" 
-          min="0" 
-          max="100" 
-          step="1" 
-          value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0} 
-          onChange={(e) => setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))}
-        />
+<input
+  type="range"
+  min="0"
+  max="100"
+  step="1"
+  value={maxStakeable > 0 ? Math.round((Number(stakeAmount || 0) / maxStakeable) * 100) : 0}
+  onChange={(e) =>
+    setStakeAmount(((maxStakeable * Number(e.target.value)) / 100).toFixed(4))
+  }
+  style={{ width: "100%", accentColor: "#18bb1a" }}
+/>
         <div style={{ display: "flex", gap: 6, margin: "8px 0" }}>
           {[25,50,75,100].map(p => (
             <button key={p} onClick={() => setStakeAmount(((maxStakeable * p) / 100).toFixed(4))} style={{ flex: 1, padding: "6px", fontSize: 12, background: "#222", border: "1px solid #444", borderRadius: 8 }}>
