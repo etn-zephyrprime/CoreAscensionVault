@@ -1,5 +1,5 @@
 {
-  "lastProcessedBlock": 14936267,
+  "lastProcessedBlock": 14936337,
   "history": [
     {
       "date": "2026-06-04",
@@ -328,7 +328,7 @@
     {
       "date": "2026-07-15",
       "coreStaked": 2530,
-      "nftsStaked": 2,
+      "nftsStaked": 1,
       "nftsStakedDelta": 1,
       "rewardsRemaining": 3468.61,
       "totalDripped": 2500,
@@ -338,7 +338,7 @@
     {
       "date": "2026-07-16",
       "coreStaked": 2530,
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "nftsStakedDelta": 1,
       "rewardsRemaining": 3477.67,
       "totalDripped": 2500,
@@ -348,51 +348,51 @@
     {
       "date": "2026-07-17",
       "coreStaked": 1100.3085,
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "rewardsRemaining": 0,
       "currentApr": 300.64
     },
     {
       "date": "2026-07-18",
       "coreStaked": 1100.3085,
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "rewardsRemaining": 0,
       "currentApr": 300.64
     },
     {
       "date": "2026-07-19",
       "coreStaked": 1100.3085,
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "rewardsRemaining": 0,
       "currentApr": 300.64
     },
     {
       "date": "2026-07-20",
       "coreStaked": 2006.3000000000002,
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "rewardsRemaining": 0,
       "currentApr": 164.88
     },
     {
       "date": "2026-07-21",
       "coreStaked": 2006.3000000000002,
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "rewardsRemaining": 0,
       "currentApr": 164.88
     },
     {
       "date": "2026-07-22",
       "coreStaked": 2006.3000000000002,
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "rewardsRemaining": 0,
       "currentApr": 164.88
     },
     {
       "date": "2026-07-23",
-      "nftsStaked": 3,
+      "nftsStaked": 1,
       "coreStaked": 5636.61,
       "totalCoreStaked": 5636.61,
-      "rewardsRemaining": 3903.66,
+      "rewardsRemaining": 3903.63,
       "currentApr": 58.69
     }
   ],
@@ -404,5 +404,5 @@
       }
     ]
   },
-  "lastUpdated": "2026-07-23T06:39:02.981Z"
+  "lastUpdated": "2026-07-23T06:50:59.576Z"
 }
