@@ -9,6 +9,7 @@
     "build": "echo 'Backend build completed'"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
     "express": "^4.19.0",
     "cors": "^2.8.5",
     "ethers": "^6.13.0"

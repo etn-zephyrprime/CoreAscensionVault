@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { loadLastBlockLocked, saveLastBlockLocked } from "../utils/blockState.js";
-import { pullHistoryFromGitHub, pushHistoryToGitHub } from "../utils/githubSync.js";
+import { getStakeHistoryState, setStakeHistoryState } from "../state/stakeHistoryState.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HISTORY_FILE = path.join(__dirname, "../data/stake-history.json");
@@ -31,14 +31,14 @@ async function loadHistory() {
     if (parsed.history?.length > 0) return parsed;
   } catch {}
 
-  // Cold start or empty local file — pull latest from GitHub
-  console.log("📥 Local history empty, pulling from GitHub...");
-  const remote = await pullHistoryFromGitHub();
-  if (remote?.content) {
+  // Cold start or empty local file — pull latest from R2
+  console.log("📥 Local history empty, pulling from R2...");
+  const remote = await getStakeHistoryState();
+  if (remote) {
     await ensureDataDir();
-    await fs.writeFile(HISTORY_FILE, JSON.stringify(remote.content, null, 2));
-    console.log(`📥 Seeded local file with ${remote.content.history?.length ?? 0} days from GitHub`);
-    return remote.content;
+    await fs.writeFile(HISTORY_FILE, JSON.stringify(remote, null, 2));
+    console.log(`📥 Seeded local file with ${remote.history?.length ?? 0} days from R2`);
+    return remote;
   }
 
   // Nothing anywhere — fresh start
@@ -61,13 +61,13 @@ async function saveHistory(data) {
   );
 
   console.log(
-    `💾 Saved ${payload.history?.length} days locally, pushing to GitHub...`
+    `💾 Saved ${payload.history?.length} days locally, pushing to R2...`
   );
 
   try {
-    await pushHistoryToGitHub(payload);
+    await setStakeHistoryState(payload);
   } catch (e) {
-    console.error("❌ GitHub push failed:", e.message);
+    console.error("❌ R2 push failed:", e.message);
   }
 }
 
