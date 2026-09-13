@@ -2,7 +2,7 @@
 import fs from "fs";
 import path from "path";
 import { withLock } from "./mutex.js";
-import { pullHistoryFromGitHub, pushHistoryToGitHub } from "./githubSync.js";
+import { getLastBlockState, setLastBlockState } from "../state/lastBlockState.js";
 
 const DATA_DIR = fs.existsSync("/backend/data")
   ? "/backend/data/state"
@@ -33,32 +33,25 @@ async function loadStateFile() {
     console.error("Local state load failed:", err);
   }
 
-  console.log("📥 Loading lastBlock.json from GitHub...");
+  console.log("📥 Loading lastBlock state from R2...");
 
   try {
-const remote = await pullHistoryFromGitHub(
-  "backend/state/lastBlock.json"
-);
+    const remote = await getLastBlockState();
 
-    if (remote?.content) {
+    if (remote) {
       ensureStateDir();
-
-      fs.writeFileSync(
-        STATE_FILE,
-        JSON.stringify(remote.content, null, 2)
-      );
-
-      return remote.content;
+      fs.writeFileSync(STATE_FILE, JSON.stringify(remote, null, 2));
+      return remote;
     }
   } catch (err) {
-    console.error("GitHub state restore failed:", err.message);
+    console.error("R2 state restore failed:", err.message);
   }
 
   return {};
 }
 
 async function saveStateFile(state) {
-    try {
+  try {
     ensureStateDir();
 
     const tempFile = `${STATE_FILE}.tmp`;
@@ -67,15 +60,11 @@ async function saveStateFile(state) {
       JSON.stringify(state, null, 2),
       "utf8"
     );
-fs.renameSync(tempFile, STATE_FILE);
+    fs.renameSync(tempFile, STATE_FILE);
 
-pushHistoryToGitHub(
-  state,
-  "backend/state/lastBlock.json"
-)
-  .catch(err =>
-    console.error("❌ lastBlock GitHub push failed:", err.message)
-  );
+    setLastBlockState(state).catch((err) =>
+      console.error("❌ lastBlock R2 push failed:", err.message)
+    );
   } catch (err) {
     console.error("saveStateFile error:", err);
     throw err;
@@ -83,14 +72,17 @@ pushHistoryToGitHub(
 }
 
 export async function loadLastBlock(key = "lastBlock") {
-const state = await loadStateFile();
+  const state = await loadStateFile();
   return state[key] ?? null;
 }
 
+// Bug fix: the block value must be set BEFORE saving, not after — this previously saved the
+// state exactly as loaded (missing the very update this call exists to persist), since
+// saveStateFile synchronously serializes `state` before the caller ever mutated it.
 export async function saveLastBlock(key = "lastBlock", block) {
-const state = await loadStateFile();
-await saveStateFile(state);
+  const state = await loadStateFile();
   state[key] = block;
+  await saveStateFile(state);
 }
 
 export async function loadLastBlockLocked(key = "lastBlock") {
